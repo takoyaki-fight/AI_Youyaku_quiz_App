@@ -18,6 +18,7 @@ import {
 } from "@/lib/vertex-ai/chat";
 import { generateAndSaveMaterial } from "@/lib/services/material.service";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/middleware/rate-limit";
+import { MODEL_NAME } from "@/lib/vertex-ai/client";
 import { v4 as uuidv4 } from "uuid";
 
 // POST /api/v1/conversations/:id/messages — メッセージ送信 → AI応答 + 素材生成
@@ -81,7 +82,7 @@ export async function POST(
     await saveGenerationLog(userId, {
       logId: uuidv4(),
       type: "chat",
-      model: "gemini-2.0-flash-001",
+      model: MODEL_NAME,
       promptTokens: 0,
       completionTokens: 0,
       totalTokens: 0,
@@ -111,7 +112,7 @@ export async function POST(
   await saveGenerationLog(userId, {
     logId: uuidv4(),
     type: "chat",
-    model: "gemini-2.0-flash-001",
+    model: MODEL_NAME,
     promptTokens: chatResult.promptTokens,
     completionTokens: chatResult.completionTokens,
     totalTokens: chatResult.promptTokens + chatResult.completionTokens,

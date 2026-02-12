@@ -10,6 +10,7 @@ import { getYesterdayRange, getYesterdayDateString } from "@/lib/utils/date";
 import type { DailyQuiz } from "@/types/daily-quiz";
 import type { Message } from "@/types/message";
 import type { Conversation } from "@/types/conversation";
+import { MODEL_NAME } from "@/lib/vertex-ai/client";
 import { v4 as uuidv4 } from "uuid";
 
 // ─── 配分アルゴリズム ───────────────────────────────
@@ -175,7 +176,7 @@ export async function generateDailyQuizForUser(
     isActive: true,
     cards: allCards,
     idempotencyKey,
-    generationModel: "gemini-2.0-flash-001",
+    generationModel: MODEL_NAME,
     promptTokens: totalPromptTokens,
     completionTokens: totalCompletionTokens,
     generatedAt: Timestamp.now(),
@@ -189,7 +190,7 @@ export async function generateDailyQuizForUser(
   await saveGenerationLog(userId, {
     logId: uuidv4(),
     type: "daily_quiz",
-    model: "gemini-2.0-flash-001",
+    model: MODEL_NAME,
     promptTokens: totalPromptTokens,
     completionTokens: totalCompletionTokens,
     totalTokens: totalPromptTokens + totalCompletionTokens,

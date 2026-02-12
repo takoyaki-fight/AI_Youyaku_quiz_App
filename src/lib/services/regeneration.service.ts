@@ -12,6 +12,7 @@ import { generateDailyQuizCards } from "@/lib/vertex-ai/daily-quiz";
 import type { Material } from "@/types/material";
 import type { DailyQuiz } from "@/types/daily-quiz";
 import type { Message } from "@/types/message";
+import { MODEL_NAME } from "@/lib/vertex-ai/client";
 import { v4 as uuidv4 } from "uuid";
 
 // ─── 素材再生成 ─────────────────────────────────────
@@ -59,7 +60,7 @@ export async function regenerateMaterial(
     terms: result.terms,
     mentions: result.mentions,
     idempotencyKey: materialId,
-    generationModel: "gemini-2.0-flash-001",
+    generationModel: MODEL_NAME,
     promptTokens: result.promptTokens,
     completionTokens: result.completionTokens,
     generatedAt: Timestamp.now(),
@@ -103,7 +104,7 @@ export async function regenerateMaterial(
   await saveGenerationLog(userId, {
     logId: uuidv4(),
     type: "regeneration",
-    model: "gemini-2.0-flash-001",
+    model: MODEL_NAME,
     promptTokens: result.promptTokens,
     completionTokens: result.completionTokens,
     totalTokens: result.promptTokens + result.completionTokens,
@@ -181,7 +182,7 @@ export async function regenerateDailyQuiz(
     isActive: true,
     cards: result.cards,
     idempotencyKey: `${userId}_${targetDate}_v${newVersion}`,
-    generationModel: "gemini-2.0-flash-001",
+    generationModel: MODEL_NAME,
     promptTokens: result.promptTokens,
     completionTokens: result.completionTokens,
     generatedAt: Timestamp.now(),
@@ -208,7 +209,7 @@ export async function regenerateDailyQuiz(
   await saveGenerationLog(userId, {
     logId: uuidv4(),
     type: "regeneration",
-    model: "gemini-2.0-flash-001",
+    model: MODEL_NAME,
     promptTokens: result.promptTokens,
     completionTokens: result.completionTokens,
     totalTokens: result.promptTokens + result.completionTokens,

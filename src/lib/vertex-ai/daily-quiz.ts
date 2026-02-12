@@ -1,4 +1,4 @@
-import { vertexAI } from "./client";
+import { vertexAI, MODEL_NAME } from "./client";
 import {
   buildDailyQuizPrompt,
   DAILY_QUIZ_RESPONSE_SCHEMA,
@@ -43,7 +43,7 @@ async function generateStructured(
   prompt: string
 ): Promise<QuizGenerationResult> {
   const model = vertexAI.getGenerativeModel({
-    model: "gemini-2.0-flash-001",
+    model: MODEL_NAME,
     generationConfig: {
       responseMimeType: "application/json",
       responseSchema: DAILY_QUIZ_RESPONSE_SCHEMA,
@@ -68,7 +68,7 @@ async function generateStructured(
 
 async function generateText(prompt: string): Promise<QuizGenerationResult> {
   const model = vertexAI.getGenerativeModel({
-    model: "gemini-2.0-flash-001",
+    model: MODEL_NAME,
   });
 
   const result = await model.generateContent({

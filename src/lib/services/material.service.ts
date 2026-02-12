@@ -8,6 +8,7 @@ import { generateMaterial } from "@/lib/vertex-ai/material";
 import type { Message } from "@/types/message";
 import type { Material } from "@/types/material";
 import { Timestamp } from "firebase-admin/firestore";
+import { MODEL_NAME } from "@/lib/vertex-ai/client";
 import { v4 as uuidv4 } from "uuid";
 
 export async function generateAndSaveMaterial(
@@ -33,7 +34,7 @@ export async function generateAndSaveMaterial(
     terms: result.terms,
     mentions: result.mentions,
     idempotencyKey: materialId,
-    generationModel: "gemini-2.0-flash-001",
+    generationModel: MODEL_NAME,
     promptTokens: result.promptTokens,
     completionTokens: result.completionTokens,
     generatedAt: Timestamp.now(),
@@ -46,7 +47,7 @@ export async function generateAndSaveMaterial(
   await saveGenerationLog(userId, {
     logId: uuidv4(),
     type: "material",
-    model: "gemini-2.0-flash-001",
+    model: MODEL_NAME,
     promptTokens: result.promptTokens,
     completionTokens: result.completionTokens,
     totalTokens: result.promptTokens + result.completionTokens,
