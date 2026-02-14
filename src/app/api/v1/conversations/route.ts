@@ -17,10 +17,12 @@ export async function POST(req: NextRequest) {
   const authResult = await verifyAuth(req);
   if (isAuthError(authResult)) return authResult;
 
-  const idempResult = await checkIdempotencyKey(req);
+  const { userId, email } = authResult;
+  const idempResult = await checkIdempotencyKey(req, {
+    namespace: `${userId}:${req.nextUrl.pathname}`,
+  });
   if (isIdempotencyHit(idempResult)) return idempResult;
 
-  const { userId, email } = authResult;
   const { key } = idempResult;
 
   // ユーザー情報を upsert

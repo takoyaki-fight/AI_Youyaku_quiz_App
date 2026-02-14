@@ -2,14 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/firebase/admin";
 import { getYesterdayDateString } from "@/lib/utils/date";
 import { generateDailyQuizForUser } from "@/lib/services/daily-quiz.service";
+import { verifyInternalRequest } from "@/lib/middleware/internal-auth";
 
 // POST /api/internal/daily-quiz-trigger
 // Cloud Schedulerから呼び出し → 全対象ユーザーのタスクをenqueue
 export async function POST(req: NextRequest) {
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader && process.env.NODE_ENV === "production") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const internalAuthError = verifyInternalRequest(req);
+  if (internalAuthError) return internalAuthError;
 
   try {
     // 対象ユーザー収集
@@ -82,6 +81,7 @@ async function enqueueToCloudTasks(
   const tasksQueue = process.env.CLOUD_TASKS_QUEUE || "daily-quiz-queue";
   const tasksLocation = process.env.CLOUD_TASKS_LOCATION || "asia-northeast1";
   const tasksSaEmail = process.env.CLOUD_TASKS_SA_EMAIL;
+  const internalApiSecret = process.env.INTERNAL_API_SECRET || "";
   const parent = client.queuePath(projectId, tasksLocation, tasksQueue);
   const targetDate = getYesterdayDateString();
 
@@ -92,7 +92,10 @@ async function enqueueToCloudTasks(
         httpRequest: {
           httpMethod: "POST",
           url: `${appUrl}/api/internal/daily-quiz-generate`,
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "X-Internal-Api-Key": internalApiSecret,
+          },
           body: Buffer.from(
             JSON.stringify({ userId, targetDate })
           ).toString("base64"),

@@ -1,8 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkIdempotency } from "@/lib/firestore/repository";
 
+interface IdempotencyOptions {
+  namespace?: string;
+}
+
+function normalizeNamespace(value: string | undefined): string {
+  if (!value) return "";
+  return value.trim();
+}
+
+function buildStorageKey(rawKey: string, options?: IdempotencyOptions): string {
+  const namespace = normalizeNamespace(options?.namespace);
+  if (!namespace) {
+    return rawKey;
+  }
+  return `${namespace}:${rawKey}`;
+}
+
 export async function checkIdempotencyKey(
-  req: NextRequest
+  req: NextRequest,
+  options?: IdempotencyOptions
 ): Promise<{ key: string } | NextResponse> {
   const key = req.headers.get("X-Idempotency-Key");
 
@@ -18,13 +36,14 @@ export async function checkIdempotencyKey(
     );
   }
 
-  const existing = await checkIdempotency(key);
+  const storageKey = buildStorageKey(key, options);
+  const existing = await checkIdempotency(storageKey);
   if (existing !== null) {
     // 既に処理済み → キャッシュ結果を返す
     return NextResponse.json(existing, { status: 200 });
   }
 
-  return { key };
+  return { key: storageKey };
 }
 
 export function isIdempotencyHit(
