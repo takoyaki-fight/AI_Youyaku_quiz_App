@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { SettingsForm } from "@/components/settings/SettingsForm";
 import { apiGet } from "@/lib/api-client";
 import { toast } from "sonner";
+import { Settings } from "lucide-react";
 
 interface SettingsData {
   dailyQuizEnabled: boolean;
@@ -26,14 +27,22 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-3.5rem)]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+        <div className="w-8 h-8 rounded-full border-2 border-blue-200 border-t-blue-600 animate-spin" />
       </div>
     );
   }
 
   return (
     <div className="max-w-lg mx-auto p-6">
-      <h1 className="text-xl font-bold mb-6">設定</h1>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center shadow-sm">
+          <Settings className="w-5 h-5 text-white" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">設定</h1>
+          <p className="text-xs text-gray-400">アプリケーションの設定を管理</p>
+        </div>
+      </div>
       {settings && <SettingsForm initialSettings={settings} />}
     </div>
   );

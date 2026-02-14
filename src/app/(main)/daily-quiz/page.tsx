@@ -6,6 +6,7 @@ import { apiGet } from "@/lib/api-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { BrainCircuit, Calendar, ChevronRight } from "lucide-react";
 
 interface QuizSummary {
   quizId: string;
@@ -28,48 +29,67 @@ export default function DailyQuizPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-3.5rem)]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+        <div className="w-8 h-8 rounded-full border-2 border-blue-200 border-t-blue-600 animate-spin" />
       </div>
     );
   }
 
   return (
     <div className="max-w-3xl mx-auto p-6">
-      <h1 className="text-xl font-bold mb-6">日次Q&A</h1>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
+          <BrainCircuit className="w-5 h-5 text-white" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">日次Q&A</h1>
+          <p className="text-xs text-gray-400">会話から自動生成された復習問題</p>
+        </div>
+      </div>
       {quizzes.length === 0 ? (
-        <div className="text-center text-gray-400 py-12 text-sm">
-          <p>まだQ&Aがありません。</p>
-          <p className="mt-1">毎朝07:00(JST)に前日の会話から自動生成されます。</p>
+        <div className="text-center py-16">
+          <div className="w-16 h-16 rounded-2xl bg-gray-50 flex items-center justify-center mx-auto mb-4">
+            <BrainCircuit className="w-8 h-8 text-gray-300" />
+          </div>
+          <p className="text-gray-500 text-sm">まだQ&Aがありません</p>
+          <p className="text-gray-400 text-xs mt-1">毎朝 07:00 (JST) に前日の会話から自動生成されます</p>
         </div>
       ) : (
         <div className="grid gap-3">
           {quizzes.map((quiz) => (
             <Card
               key={quiz.quizId}
-              className="cursor-pointer hover:bg-gray-50 transition-colors"
+              className="cursor-pointer group hover:shadow-md hover:border-gray-200 transition-all"
               onClick={() => router.push(`/daily-quiz/${quiz.targetDate}`)}
             >
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">{quiz.targetDate}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">
-                    {quiz.cards.length}問
-                  </span>
-                  <div className="flex gap-1">
-                    {Array.from(new Set(quiz.cards.map((c) => c.tag))).map(
-                      (tag) => (
-                        <Badge
-                          key={tag}
-                          variant="secondary"
-                          className="text-[10px]"
-                        >
-                          {tag}
-                        </Badge>
-                      )
-                    )}
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-800">{quiz.targetDate}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs text-gray-400">
+                          {quiz.cards.length}問
+                        </span>
+                        <div className="flex gap-1">
+                          {Array.from(new Set(quiz.cards.map((c) => c.tag))).map(
+                            (tag) => (
+                              <Badge
+                                key={tag}
+                                variant="secondary"
+                                className="text-[10px] px-1.5 py-0"
+                              >
+                                {tag}
+                              </Badge>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
+                  <ChevronRight className="w-4 h-4 text-gray-300 group-hover:text-gray-500 transition-colors" />
                 </div>
               </CardContent>
             </Card>

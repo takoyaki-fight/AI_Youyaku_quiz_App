@@ -14,6 +14,26 @@ pnpm dev
 bun dev
 ```
 
+### Playwright MCP
+
+If you need Playwright MCP, run these commands in separate terminals:
+
+```bash
+# 1) start app
+npm run dev
+
+# 2) start Playwright MCP server (separate terminal)
+npm run mcp:playwright
+```
+
+デフォルトは `--headless` で、MCP サーバーは `127.0.0.1:8931` で待受けします。
+
+MCP が起動しない場合は、まず以下が入っているか確認します。
+
+```bash
+npm exec npx @playwright/mcp --help
+```
+
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
