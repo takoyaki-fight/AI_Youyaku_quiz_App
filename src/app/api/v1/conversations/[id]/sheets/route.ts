@@ -137,7 +137,9 @@ export async function POST(
   const authResult = await verifyAuth(req);
   if (isAuthError(authResult)) return authResult;
 
-  const idempResult = await checkIdempotencyKey(req);
+  const idempResult = await checkIdempotencyKey(req, {
+    namespace: `${authResult.userId}:${req.nextUrl.pathname}`,
+  });
   if (isIdempotencyHit(idempResult)) return idempResult;
 
   const { key } = idempResult;

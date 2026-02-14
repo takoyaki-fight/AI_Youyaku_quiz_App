@@ -68,6 +68,7 @@ Copy-Item .env.example .env.local
 - `GOOGLE_CLOUD_PROJECT`
 - `VERTEX_AI_LOCATION`（例: `asia-northeast1`）
 - `VERTEX_AI_MODEL`（例: `gemini-2.5-flash`）
+- `INTERNAL_API_SECRET`（`/api/internal/*` 用の共通シークレット）
 - `APP_URL`（ローカルは `http://localhost:3000`）
 
 Firebase Admin 認証は次のいずれかを利用します。
@@ -96,6 +97,7 @@ Googleログインは `localhost` ドメインでの利用を推奨します。
 ## API利用時の注意
 
 - `/api/v1/**` は `Authorization: Bearer <Firebase ID Token>` が必要です。
+- `/api/internal/**` は `X-Internal-Api-Key` が必要です（本番）。
 - 一部POSTは `X-Idempotency-Key` が必須です。
   - 例: 会話作成、メッセージ送信、要約再生成、手動クイズ生成、クイズ再生成
 - レート制限があります（例: チャット 10回/分、クイズ再生成 3回/日）。
@@ -107,6 +109,7 @@ Googleログインは `localhost` ドメインでの利用を推奨します。
 3. `/api/internal/daily-quiz-generate` が各ユーザー分を生成
 
 開発環境では Cloud Tasks を使わずに直接実行されます。
+本番では Cloud Scheduler 側にも `X-Internal-Api-Key: <INTERNAL_API_SECRET>` を設定してください。
 
 ## Firestoreデータ構造（概要）
 

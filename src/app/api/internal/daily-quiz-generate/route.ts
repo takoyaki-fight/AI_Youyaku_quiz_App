@@ -1,14 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateDailyQuizForUser } from "@/lib/services/daily-quiz.service";
+import { verifyInternalRequest } from "@/lib/middleware/internal-auth";
 
 // POST /api/internal/daily-quiz-generate
 // Cloud Tasksから呼び出し → 1ユーザー分のQ&A生成
 export async function POST(req: NextRequest) {
-  // OIDC認証チェック
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader && process.env.NODE_ENV === "production") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const internalAuthError = verifyInternalRequest(req);
+  if (internalAuthError) return internalAuthError;
 
   try {
     const body = await req.json();
