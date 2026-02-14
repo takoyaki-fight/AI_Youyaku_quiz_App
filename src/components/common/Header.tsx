@@ -24,18 +24,18 @@ export function Header() {
   if (!user) return null;
 
   const navItems = [
-    { href: "/chat", label: "Chat", icon: MessageSquare },
+    { href: "/chat", label: "会話", icon: MessageSquare },
     { href: "/summary-sheets", label: "要約シート", icon: FileText },
-    { href: "/daily-quiz", label: "Daily Quiz", icon: BrainCircuit },
-    { href: "/settings", label: "Settings", icon: Settings },
+    { href: "/daily-quiz", label: "デイリークイズ", icon: BrainCircuit },
+    { href: "/settings", label: "設定", icon: Settings },
   ];
 
   const displayName = user.displayName || "User";
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-[color:var(--md-sys-color-surface-container-low)]/90 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-        <div className="flex items-center gap-2 sm:gap-4">
+      <div className="flex h-16 w-full items-center px-4 sm:px-6">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-4">
           <Link href="/chat" className="group flex items-center">
             <BrandLogo
               size="sm"
@@ -66,7 +66,7 @@ export function Header() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
           <div className="hidden items-center gap-2 rounded-full border border-border/80 bg-card px-2 py-1 sm:flex">
             <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[color:var(--md-sys-color-primary-container)] text-xs font-semibold text-[color:var(--md-sys-color-on-primary-container)]">
               {displayName.charAt(0)}
@@ -81,7 +81,8 @@ export function Header() {
             size="icon-sm"
             onClick={signOut}
             className="hidden text-[color:var(--md-sys-color-on-surface-variant)] hover:text-foreground sm:inline-flex"
-            aria-label="Sign out"
+            aria-label="ログアウト"
+            title="ログアウト"
           >
             <LogOut className="h-4 w-4" />
           </Button>
@@ -136,7 +137,7 @@ export function Header() {
             </div>
             <Button variant="ghost" size="sm" onClick={signOut}>
               <LogOut className="h-4 w-4" />
-              Sign out
+              ログアウト
             </Button>
           </div>
         </div>
