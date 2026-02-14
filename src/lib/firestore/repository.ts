@@ -196,6 +196,52 @@ export async function listConversationSheets(
   return snap.docs.map((d) => d.data() as ConversationSheet);
 }
 
+export interface SummarySheetListItem {
+  conversationId: string;
+  conversationTitle: string;
+  sheetId: string;
+  title: string;
+  markdown: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export async function listSummarySheets(
+  userId: string,
+  limit = 50
+): Promise<SummarySheetListItem[]> {
+  const conversations = await listConversations(userId);
+
+  const rows = await Promise.all(
+    conversations.map(async (conversation) => {
+      const sheets = await listConversationSheets(
+        userId,
+        conversation.conversationId,
+        1
+      );
+      const latest = sheets[0];
+      if (!latest) {
+        return null;
+      }
+
+      return {
+        conversationId: conversation.conversationId,
+        conversationTitle: conversation.title,
+        sheetId: latest.sheetId,
+        title: latest.title,
+        markdown: latest.markdown,
+        createdAt: latest.createdAt,
+        updatedAt: latest.updatedAt,
+      } satisfies SummarySheetListItem;
+    })
+  );
+
+  return rows
+    .filter((row): row is SummarySheetListItem => row !== null)
+    .sort((a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis())
+    .slice(0, limit);
+}
+
 export async function createConversationSheet(
   userId: string,
   conversationId: string,

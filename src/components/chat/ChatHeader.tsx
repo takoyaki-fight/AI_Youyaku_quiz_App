@@ -23,7 +23,7 @@ export function ChatHeader() {
           className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-[color:var(--md-sys-color-surface-container-high)] px-3 py-1.5 text-xs font-medium text-[color:var(--md-sys-color-on-surface)] transition-colors hover:brightness-95"
         >
           <FileText className="h-3.5 w-3.5" />
-          Conversation Sheet
+          要約シート
         </Link>
         <Link
           href={`/chat/${conversationId}/terms`}

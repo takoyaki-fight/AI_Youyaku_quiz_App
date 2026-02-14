@@ -82,7 +82,7 @@ function buildDownloadFilename(sheet: ConversationSheetItem): string {
   const yyyy = now.getFullYear();
   const mm = String(now.getMonth() + 1).padStart(2, "0");
   const dd = String(now.getDate()).padStart(2, "0");
-  const safeTitle = sanitizeFilenamePart(sheet.title) || "conversation-sheet";
+  const safeTitle = sanitizeFilenamePart(sheet.title) || "summary-sheet";
   return `${safeTitle}-${yyyy}${mm}${dd}.md`;
 }
 
@@ -106,7 +106,7 @@ export default function ConversationSheetPage() {
       )[0] ?? null;
       setSheet(latest);
     } catch {
-      toast.error("Failed to load conversation sheet");
+      toast.error("要約シートの取得に失敗しました");
       setSheet(null);
     } finally {
       setLoading(false);
@@ -126,10 +126,10 @@ export default function ConversationSheetPage() {
         uuidv4()
       );
       setSheet(result.sheet);
-      toast.success("Conversation sheet regenerated");
+      toast.success("要約シートを再生成しました");
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : "Failed to regenerate sheet";
+        error instanceof Error ? error.message : "要約シートの再生成に失敗しました";
       toast.error(message);
     } finally {
       setRegenerating(false);
@@ -166,12 +166,12 @@ export default function ConversationSheetPage() {
           onClick={() => router.push(`/chat/${conversationId}`)}
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Chat
+          チャットに戻る
         </Button>
 
         <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
           <FileText className="h-4 w-4" />
-          Conversation Sheet
+          要約シート
         </div>
 
         <div className="ml-auto flex items-center gap-1.5">
@@ -186,7 +186,7 @@ export default function ConversationSheetPage() {
             ) : (
               <RefreshCw className="h-4 w-4" />
             )}
-            Regenerate
+            再生成
           </Button>
           <Button
             size="sm"
@@ -195,7 +195,7 @@ export default function ConversationSheetPage() {
             disabled={!sheet}
           >
             <Download className="h-4 w-4" />
-            Download
+            ダウンロード
           </Button>
         </div>
       </div>
@@ -209,9 +209,9 @@ export default function ConversationSheetPage() {
           <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
             <FileText className="h-10 w-10 text-[color:var(--md-sys-color-outline)]" />
             <div>
-              <p className="text-sm font-medium">No conversation sheet yet</p>
+              <p className="text-sm font-medium">要約シートがまだありません</p>
               <p className="mt-1 text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
-                Generate after at least one message exists in this conversation.
+                この会話にメッセージがある状態で「再生成」を押してください。
               </p>
             </div>
             <Button
@@ -223,7 +223,7 @@ export default function ConversationSheetPage() {
               ) : (
                 <RefreshCw className="h-4 w-4" />
               )}
-              Regenerate
+              再生成
             </Button>
           </div>
         ) : (
@@ -231,7 +231,7 @@ export default function ConversationSheetPage() {
             <div className="border-b border-border/70 bg-[color:var(--md-sys-color-surface-container-low)] px-4 py-3">
               <p className="text-sm font-semibold text-foreground">{sheet.title}</p>
               <p className="mt-1 text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
-                Last updated: {updatedAtLabel}
+                最終更新: {updatedAtLabel}
               </p>
             </div>
             <ScrollArea className="min-h-0 flex-1">

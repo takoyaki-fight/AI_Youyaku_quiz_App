@@ -9,6 +9,7 @@ import { BrandLogo } from "@/components/common/BrandLogo";
 import {
   MessageSquare,
   BrainCircuit,
+  FileText,
   Settings,
   LogOut,
   Menu,
@@ -24,6 +25,7 @@ export function Header() {
 
   const navItems = [
     { href: "/chat", label: "Chat", icon: MessageSquare },
+    { href: "/summary-sheets", label: "要約シート", icon: FileText },
     { href: "/daily-quiz", label: "Daily Quiz", icon: BrainCircuit },
     { href: "/settings", label: "Settings", icon: Settings },
   ];
