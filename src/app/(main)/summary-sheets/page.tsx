@@ -1,9 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
-import { Download, FileText, Loader2, MessageSquare, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import {
+  ArrowLeft,
+  Download,
+  FileText,
+  Loader2,
+  MessageSquare,
+  RefreshCw,
+} from "lucide-react";
 import { toast } from "sonner";
+import { MarkdownContent } from "@/components/chat/MarkdownContent";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { apiGet } from "@/lib/api-client";
@@ -54,7 +62,7 @@ function toDate(timestamp?: FirestoreTimestamp | null): Date | null {
 
 function formatUpdatedAt(timestamp?: FirestoreTimestamp | null): string {
   const date = toDate(timestamp);
-  if (!date) return "更新日時不明";
+  if (!date) return "\u66f4\u65b0\u65e5\u6642\u4e0d\u660e";
   return updatedAtFormatter.format(date);
 }
 
@@ -79,6 +87,17 @@ function sanitizeFilenamePart(value: string): string {
     .slice(0, 50);
 }
 
+function buildSheetHref(
+  pathname: string,
+  conversationId: string,
+  sheetId: string
+): string {
+  const params = new URLSearchParams();
+  params.set("conversationId", conversationId);
+  params.set("sheetId", sheetId);
+  return `${pathname}?${params.toString()}`;
+}
+
 function downloadMarkdown(sheet: SummarySheetItem): void {
   const now = new Date();
   const yyyy = now.getFullYear();
@@ -101,9 +120,28 @@ function downloadMarkdown(sheet: SummarySheetItem): void {
 }
 
 export default function SummarySheetsPage() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sheets, setSheets] = useState<SummarySheetItem[]>([]);
+  const [allowEmptySelection, setAllowEmptySelection] = useState(false);
+
+  const selectedConversationId = searchParams.get("conversationId");
+  const selectedSheetId = searchParams.get("sheetId");
+
+  const selectedSheet = useMemo(() => {
+    if (!selectedConversationId || !selectedSheetId) return null;
+    return (
+      sheets.find(
+        (sheet) =>
+          sheet.conversationId === selectedConversationId &&
+          sheet.sheetId === selectedSheetId
+      ) || null
+    );
+  }, [selectedConversationId, selectedSheetId, sheets]);
 
   const fetchSheets = useCallback(async () => {
     try {
@@ -112,7 +150,9 @@ export default function SummarySheetsPage() {
       );
       setSheets(data.sheets);
     } catch {
-      toast.error("要約シート一覧の取得に失敗しました");
+      toast.error(
+        "\u8981\u7d04\u30b7\u30fc\u30c8\u4e00\u89a7\u306e\u53d6\u5f97\u306b\u5931\u6557\u3057\u307e\u3057\u305f"
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -123,10 +163,51 @@ export default function SummarySheetsPage() {
     void fetchSheets();
   }, [fetchSheets]);
 
+  useEffect(() => {
+    if (!sheets.length) return;
+    if (selectedSheet) return;
+
+    const hasAnyQuery = Boolean(selectedConversationId || selectedSheetId);
+    const fallback = sheets[0];
+    const fallbackHref = buildSheetHref(
+      pathname,
+      fallback.conversationId,
+      fallback.sheetId
+    );
+
+    if (hasAnyQuery || !allowEmptySelection) {
+      router.replace(fallbackHref, { scroll: false });
+    }
+  }, [
+    allowEmptySelection,
+    pathname,
+    router,
+    selectedConversationId,
+    selectedSheet,
+    selectedSheetId,
+    sheets,
+  ]);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     await fetchSheets();
   };
+
+  const handleSelectSheet = useCallback(
+    (sheet: SummarySheetItem) => {
+      setAllowEmptySelection(false);
+      router.push(
+        buildSheetHref(pathname, sheet.conversationId, sheet.sheetId),
+        { scroll: false }
+      );
+    },
+    [pathname, router]
+  );
+
+  const handleBackToListMobile = useCallback(() => {
+    setAllowEmptySelection(true);
+    router.push(pathname, { scroll: false });
+  }, [pathname, router]);
 
   if (loading) {
     return (
@@ -136,12 +217,14 @@ export default function SummarySheetsPage() {
     );
   }
 
+  const shouldShowDetail = Boolean(selectedSheet);
+
   return (
-    <div className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-6xl flex-col p-4 md:p-6">
+    <div className="mx-auto flex h-[calc(100vh-4rem)] w-full max-w-7xl flex-col p-4 md:p-6">
       <div className="mb-4 flex items-center gap-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <FileText className="h-4 w-4" />
-          要約シート
+          {"\u8981\u7d04\u30b7\u30fc\u30c8"}
         </div>
         <div className="ml-auto">
           <Button
@@ -155,65 +238,137 @@ export default function SummarySheetsPage() {
             ) : (
               <RefreshCw className="h-4 w-4" />
             )}
-            更新
+            {"\u66f4\u65b0"}
           </Button>
         </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-hidden rounded-[var(--md-shape-lg)] border border-border/70 bg-[color:var(--md-sys-color-surface-container-lowest)]">
-        <ScrollArea className="h-full">
-          {sheets.length === 0 ? (
-            <div className="flex h-full min-h-[320px] flex-col items-center justify-center gap-3 px-6 text-center">
-              <FileText className="h-10 w-10 text-[color:var(--md-sys-color-outline)]" />
-              <div>
-                <p className="text-sm font-medium text-foreground">
-                  まだ要約シートがありません
-                </p>
-                <p className="mt-1 text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
-                  各チャットの「要約シート」画面から生成すると一覧に表示されます
-                </p>
-              </div>
+        {sheets.length === 0 ? (
+          <div className="flex h-full min-h-[320px] flex-col items-center justify-center gap-3 px-6 text-center">
+            <FileText className="h-10 w-10 text-[color:var(--md-sys-color-outline)]" />
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {"\u307e\u3060\u8981\u7d04\u30b7\u30fc\u30c8\u304c\u3042\u308a\u307e\u305b\u3093"}
+              </p>
+              <p className="mt-1 text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
+                {
+                  "\u5404\u30c1\u30e3\u30c3\u30c8\u306e\u300c\u8981\u7d04\u30b7\u30fc\u30c8\u300d\u753b\u9762\u304b\u3089\u751f\u6210\u3059\u308b\u3068\u4e00\u89a7\u306b\u8868\u793a\u3055\u308c\u307e\u3059"
+                }
+              </p>
             </div>
-          ) : (
-            <div className="grid gap-3 p-3 md:grid-cols-2">
-              {sheets.map((sheet) => (
-                <article
-                  key={`${sheet.conversationId}:${sheet.sheetId}`}
-                  className="rounded-[var(--md-shape-md)] border border-border/70 bg-[color:var(--md-sys-color-surface-container-low)] p-4"
-                >
-                  <div className="mb-2 flex items-center gap-2 text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
-                    <MessageSquare className="h-3.5 w-3.5" />
-                    <span className="truncate">{sheet.conversationTitle}</span>
-                  </div>
-                  <h2 className="line-clamp-2 text-sm font-semibold text-foreground">
-                    {sheet.title}
-                  </h2>
-                  <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-[color:var(--md-sys-color-on-surface-variant)]">
-                    {buildExcerpt(sheet.markdown)}
-                  </p>
-                  <div className="mt-3 flex items-center justify-between">
-                    <p className="text-[11px] text-[color:var(--md-sys-color-on-surface-variant)]">
-                      更新: {formatUpdatedAt(sheet.updatedAt)}
-                    </p>
-                    <div className="flex items-center gap-1.5">
-                      <Button
-                        size="xs"
-                        variant="outline"
-                        onClick={() => downloadMarkdown(sheet)}
+          </div>
+        ) : (
+          <div className="h-full md:grid md:grid-cols-[340px_minmax(0,1fr)]">
+            <section className={`${shouldShowDetail ? "hidden md:block" : "block"} min-h-0 border-r border-border/70`}>
+              <ScrollArea className="h-full">
+                <div className="divide-y divide-border/70">
+                  {sheets.map((sheet) => {
+                    const isSelected =
+                      selectedSheet?.conversationId === sheet.conversationId &&
+                      selectedSheet?.sheetId === sheet.sheetId;
+
+                    return (
+                      <article
+                        key={`${sheet.conversationId}:${sheet.sheetId}`}
+                        role="button"
+                        tabIndex={0}
+                        aria-pressed={isSelected}
+                        onClick={() => handleSelectSheet(sheet)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            handleSelectSheet(sheet);
+                          }
+                        }}
+                        className={`cursor-pointer px-4 py-3 transition-colors ${
+                          isSelected
+                            ? "bg-[color:var(--md-sys-color-secondary-container)]/50"
+                            : "hover:bg-[color:var(--md-sys-color-surface-container-low)]"
+                        }`}
                       >
-                        <Download className="h-3 w-3" />
-                        DL
-                      </Button>
-                      <Button size="xs" asChild>
-                        <Link href={`/chat/${sheet.conversationId}/sheet`}>開く</Link>
+                        <div className="mb-1 flex items-center gap-2 text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
+                          <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{sheet.conversationTitle}</span>
+                        </div>
+
+                        <p className="line-clamp-1 text-sm font-semibold text-foreground">
+                          {sheet.title}
+                        </p>
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[color:var(--md-sys-color-on-surface-variant)]">
+                          {buildExcerpt(sheet.markdown)}
+                        </p>
+
+                        <div className="mt-2 flex items-center justify-between gap-2">
+                          <p className="text-[11px] text-[color:var(--md-sys-color-on-surface-variant)]">
+                            {"\u66f4\u65b0: "}
+                            {formatUpdatedAt(sheet.updatedAt)}
+                          </p>
+                          <Button
+                            size="xs"
+                            variant="outline"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              downloadMarkdown(sheet);
+                            }}
+                            onKeyDown={(event) => {
+                              event.stopPropagation();
+                            }}
+                          >
+                            <Download className="h-3 w-3" />
+                            DL
+                          </Button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </section>
+
+            <section className={`${shouldShowDetail ? "block" : "hidden md:block"} min-h-0`}>
+              {selectedSheet ? (
+                <div className="flex h-full min-h-0 flex-col">
+                  <div className="border-b border-border/70 bg-[color:var(--md-sys-color-surface-container-low)] px-4 py-3">
+                    <div className="mb-2 md:hidden">
+                      <Button variant="ghost" size="sm" onClick={handleBackToListMobile}>
+                        <ArrowLeft className="h-4 w-4" />
+                        {"\u4e00\u89a7\u306b\u623b\u308b"}
                       </Button>
                     </div>
+                    <p className="text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
+                      {selectedSheet.conversationTitle}
+                    </p>
+                    <p className="mt-0.5 text-sm font-semibold text-foreground">
+                      {selectedSheet.title}
+                    </p>
+                    <p className="mt-1 text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
+                      {"\u66f4\u65b0: "}
+                      {formatUpdatedAt(selectedSheet.updatedAt)}
+                    </p>
                   </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </ScrollArea>
+
+                  <ScrollArea className="min-h-0 flex-1">
+                    <div className="mx-auto w-full max-w-4xl p-4 md:p-6">
+                      <div className="rounded-[var(--md-shape-lg)] border border-border/70 bg-[color:var(--md-sys-color-surface-container-lowest)] p-4 shadow-[var(--md-elevation-1)] md:p-6">
+                        <MarkdownContent content={selectedSheet.markdown} />
+                      </div>
+                    </div>
+                  </ScrollArea>
+                </div>
+              ) : (
+                <div className="flex h-full items-center justify-center p-6 text-center">
+                  <div>
+                    <FileText className="mx-auto h-8 w-8 text-[color:var(--md-sys-color-outline)]" />
+                    <p className="mt-3 text-sm text-[color:var(--md-sys-color-on-surface-variant)]">
+                      {"\u8981\u7d04\u30b7\u30fc\u30c8\u3092\u9078\u629e\u3057\u3066\u304f\u3060\u3055\u3044"}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </section>
+          </div>
+        )}
       </div>
     </div>
   );
