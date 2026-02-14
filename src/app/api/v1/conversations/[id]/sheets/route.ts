@@ -1,0 +1,121 @@
+import { NextRequest, NextResponse } from "next/server";
+import { verifyAuth, isAuthError } from "@/lib/middleware/auth";
+import {
+  checkIdempotencyKey,
+  isIdempotencyHit,
+} from "@/lib/middleware/idempotency";
+import {
+  getConversation,
+  getMessages,
+  listConversationSheets,
+  saveIdempotency,
+} from "@/lib/firestore/repository";
+import { syncAutoConversationSheet } from "@/lib/services/conversation-sheet.service";
+import type { ConversationSheet } from "@/types/conversation-sheet";
+
+function toMillis(value: unknown): number {
+  if (
+    value &&
+    typeof value === "object" &&
+    "toMillis" in value &&
+    typeof (value as { toMillis: unknown }).toMillis === "function"
+  ) {
+    return (value as { toMillis: () => number }).toMillis();
+  }
+  return 0;
+}
+
+function isLowQualitySheet(markdown: string): boolean {
+  const text = markdown.toLowerCase();
+  const hasTemplateSections =
+    /(^|\n)##\s*(decisions?|open questions?|next actions?)\b/i.test(markdown);
+  const noneMatches = text.match(/\b(?:none|n\/a|na)\b/g);
+  const noneCount = noneMatches ? noneMatches.length : 0;
+  const hasEscapedNewlineHeading = /\\n#{1,6}\s+/.test(markdown);
+  const hasAnyHeading = /^#{1,6}\s+/m.test(markdown);
+
+  return (
+    hasTemplateSections && noneCount >= 2 ||
+    hasEscapedNewlineHeading ||
+    !hasAnyHeading
+  );
+}
+
+async function generateSheetIfPossible(userId: string, conversationId: string) {
+  const messages = await getMessages(userId, conversationId, 60);
+  if (!messages.length) {
+    return null;
+  }
+  return syncAutoConversationSheet(userId, conversationId, messages);
+}
+
+// GET /api/v1/conversations/:id/sheets
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const authResult = await verifyAuth(req);
+  if (isAuthError(authResult)) return authResult;
+
+  const { id: conversationId } = await params;
+  const conversation = await getConversation(authResult.userId, conversationId);
+  if (!conversation) {
+    return NextResponse.json(
+      { error: { code: "CONVERSATION_NOT_FOUND", message: "Conversation not found" } },
+      { status: 404 }
+    );
+  }
+
+  let sheets = await listConversationSheets(authResult.userId, conversationId);
+
+  const latestSheet = sheets[0] as ConversationSheet | undefined;
+  const sheetStale =
+    !!latestSheet &&
+    toMillis(conversation.updatedAt) > toMillis(latestSheet.updatedAt) + 1_000;
+  const sheetLooksLowQuality =
+    !!latestSheet && isLowQualitySheet(latestSheet.markdown);
+
+  if (sheets.length === 0 || sheetStale || sheetLooksLowQuality) {
+    const generated = await generateSheetIfPossible(authResult.userId, conversationId);
+    if (generated) {
+      sheets = [generated, ...sheets.filter((sheet) => sheet.sheetId !== generated.sheetId)];
+    }
+  }
+
+  return NextResponse.json({ sheets });
+}
+
+// POST /api/v1/conversations/:id/sheets
+// Auto-generate or refresh the conversation sheet with LLM.
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const authResult = await verifyAuth(req);
+  if (isAuthError(authResult)) return authResult;
+
+  const idempResult = await checkIdempotencyKey(req);
+  if (isIdempotencyHit(idempResult)) return idempResult;
+
+  const { key } = idempResult;
+  const { id: conversationId } = await params;
+  const conversation = await getConversation(authResult.userId, conversationId);
+  if (!conversation) {
+    return NextResponse.json(
+      { error: { code: "CONVERSATION_NOT_FOUND", message: "Conversation not found" } },
+      { status: 404 }
+    );
+  }
+
+  const sheet = await generateSheetIfPossible(authResult.userId, conversationId);
+  if (!sheet) {
+    return NextResponse.json(
+      { error: { code: "NO_MESSAGES", message: "No messages to summarize yet" } },
+      { status: 400 }
+    );
+  }
+
+  const result = { sheet };
+  await saveIdempotency(key, result);
+  return NextResponse.json(result, { status: 201 });
+}

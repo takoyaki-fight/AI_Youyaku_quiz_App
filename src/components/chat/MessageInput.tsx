@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { SendHorizonal, Loader2 } from "lucide-react";
 
 interface MessageInputProps {
   onSend: (content: string) => void;
@@ -18,7 +19,6 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
     if (!trimmed || disabled) return;
     onSend(trimmed);
     setValue("");
-    // テキストエリアの高さをリセット
     if (textareaRef.current) {
       textareaRef.current.style.height = "auto";
     }
@@ -33,32 +33,43 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setValue(e.target.value);
-    // 自動リサイズ
     const el = e.target;
     el.style.height = "auto";
-    el.style.height = Math.min(el.scrollHeight, 200) + "px";
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   };
 
+  const canSend = Boolean(value.trim()) && !disabled;
+
   return (
-    <div className="border-t bg-white p-4">
-      <div className="flex gap-2 max-w-4xl mx-auto">
-        <Textarea
-          ref={textareaRef}
-          value={value}
-          onChange={handleInput}
-          onKeyDown={handleKeyDown}
-          placeholder="メッセージを入力... (Shift+Enterで改行)"
-          disabled={disabled}
-          className="resize-none min-h-[44px] max-h-[200px]"
-          rows={1}
-        />
+    <div className="sticky bottom-0 z-20 border-t border-border/70 bg-[color:var(--md-sys-color-surface-container-low)]/95 px-4 py-3 backdrop-blur-md">
+      <div className="mx-auto flex max-w-4xl items-end gap-2">
+        <div className="flex-1">
+          <Textarea
+            ref={textareaRef}
+            value={value}
+            onChange={handleInput}
+            onKeyDown={handleKeyDown}
+            placeholder="質問を入力してください"
+            disabled={disabled}
+            className="min-h-[52px] max-h-[200px] resize-none pr-4"
+            rows={1}
+          />
+          <p className="ml-1 mt-1 text-[10px] text-[color:var(--md-sys-color-on-surface-variant)]">
+            Shift+Enter で改行
+          </p>
+        </div>
         <Button
           onClick={handleSend}
-          disabled={!value.trim() || disabled}
-          size="default"
-          className="shrink-0 self-end"
+          disabled={!canSend}
+          size="icon"
+          className="mb-5 shrink-0"
+          aria-label="メッセージを送信"
         >
-          送信
+          {disabled ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <SendHorizonal className="h-4 w-4" />
+          )}
         </Button>
       </div>
     </div>

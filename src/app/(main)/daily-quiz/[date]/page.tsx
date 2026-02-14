@@ -1,18 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { v4 as uuidv4 } from "uuid";
+import { ArrowLeft, Loader2, Play, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { QuizCardList } from "@/components/quiz/QuizCardList";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiGet, apiPost } from "@/lib/api-client";
-import { toast } from "sonner";
-import { v4 as uuidv4 } from "uuid";
 
 interface CardItem {
   cardId: string;
   tag: string;
   question: string;
+  choices: string[];
+  correctIndex: number;
   answer: string;
+  explanation: string;
   sources: string[];
   conversationId: string;
 }
@@ -32,26 +37,26 @@ export default function DailyQuizDatePage() {
   const [loading, setLoading] = useState(true);
   const [regenerating, setRegenerating] = useState(false);
 
-  const fetchQuiz = () => {
+  const fetchQuiz = useCallback(() => {
     setLoading(true);
     apiGet<{ quiz: QuizDetail }>(`/api/v1/daily-quizzes/${date}`)
       .then((data) => setQuiz(data.quiz))
       .catch(() => setQuiz(null))
       .finally(() => setLoading(false));
-  };
+  }, [date]);
 
   useEffect(() => {
     fetchQuiz();
-  }, [date]);
+  }, [fetchQuiz]);
 
   const handleRegenerate = async () => {
     setRegenerating(true);
     try {
       await apiPost(`/api/v1/daily-quizzes/${date}/regenerate`, {}, uuidv4());
-      toast.success("Q&Aを再生成しました");
+      toast.success("\u30af\u30a4\u30ba\u3092\u518d\u751f\u6210\u3057\u307e\u3057\u305f");
       fetchQuiz();
     } catch {
-      toast.error("再生成に失敗しました");
+      toast.error("\u518d\u751f\u6210\u306b\u5931\u6557\u3057\u307e\u3057\u305f");
     } finally {
       setRegenerating(false);
     }
@@ -59,42 +64,79 @@ export default function DailyQuizDatePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-3.5rem)]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+      <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-3xl mx-auto p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="mx-auto max-w-4xl p-6">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
-            size="sm"
+            size="icon-sm"
             onClick={() => router.push("/daily-quiz")}
+            aria-label="\u4e00\u89a7\u306b\u623b\u308b"
           >
-            ← 一覧に戻る
+            <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-xl font-bold">{date}</h1>
-          {quiz && (
-            <span className="text-sm text-gray-400">v{quiz.version}</span>
-          )}
+          <div>
+            <h1 className="text-xl font-semibold text-foreground">{date}</h1>
+            {quiz && (
+              <div className="mt-1 flex items-center gap-2">
+                <Badge variant="secondary" className="text-[10px]">
+                  v{quiz.version}
+                </Badge>
+                <span className="text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
+                  {quiz.cards.length}
+                  {"\u554f"}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRegenerate}
-          disabled={regenerating}
-        >
-          {regenerating ? "再生成中..." : "再生成"}
-        </Button>
+
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() => router.push(`/daily-quiz/${date}/study`)}
+            disabled={!quiz || quiz.cards.length === 0}
+            className="gap-1.5"
+          >
+            <Play className="h-3.5 w-3.5" />
+            {"\u30af\u30a4\u30ba\u30b9\u30bf\u30fc\u30c8"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRegenerate}
+            disabled={regenerating}
+            className="gap-1.5"
+          >
+            {regenerating ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
+            {regenerating
+              ? "\u518d\u751f\u6210\u4e2d..."
+              : "\u518d\u751f\u6210"}
+          </Button>
+        </div>
       </div>
+
       {quiz ? (
         <QuizCardList cards={quiz.cards} />
       ) : (
-        <div className="text-center text-gray-400 py-12 text-sm">
-          この日のQ&Aはありません
+        <div className="rounded-[var(--md-shape-lg)] border border-border/70 bg-card py-16 text-center shadow-[var(--md-elevation-1)]">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[var(--md-shape-md)] bg-[color:var(--md-sys-color-surface-container)]">
+            <RefreshCw className="h-8 w-8 text-[color:var(--md-sys-color-on-surface-variant)]" />
+          </div>
+          <p className="text-sm text-foreground">
+            {"\u3053\u306e\u65e5\u306e\u30af\u30a4\u30ba\u306f\u3042\u308a\u307e\u305b\u3093"}
+          </p>
         </div>
       )}
     </div>

@@ -20,10 +20,13 @@ const categoryLabels: Record<string, string> = {
   concept: "概念",
 };
 
-const categoryColors: Record<string, string> = {
-  technical: "bg-blue-100 text-blue-800",
-  proper_noun: "bg-green-100 text-green-800",
-  concept: "bg-purple-100 text-purple-800",
+const categoryClassNames: Record<string, string> = {
+  technical:
+    "bg-[color:color-mix(in_srgb,var(--md-sys-color-primary-container),white_16%)] text-[color:var(--md-sys-color-on-primary-container)]",
+  proper_noun:
+    "bg-[color:color-mix(in_srgb,var(--md-sys-color-secondary-container),white_10%)] text-[color:var(--md-sys-color-on-secondary-container)]",
+  concept:
+    "bg-[color:color-mix(in_srgb,var(--md-sys-color-tertiary-container),white_10%)] text-[color:var(--md-sys-color-on-tertiary-container)]",
 };
 
 interface TermListProps {
@@ -42,47 +45,58 @@ export function TermList({ terms, onJumpToMessage }: TermListProps) {
   );
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="p-4 border-b">
+    <div className="flex h-full flex-col">
+      <div className="border-b border-border/70 bg-[color:var(--md-sys-color-surface-container-low)] p-4">
         <Input
-          placeholder="用語を検索..."
+          placeholder="用語を検索"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <p className="text-xs text-gray-400 mt-2">
+        <p className="mt-2 text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
           {filtered.length} / {terms.length} 件
         </p>
       </div>
-      <ScrollArea className="flex-1">
-        <div className="divide-y">
+
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="divide-y divide-border/60">
           {filtered.length === 0 ? (
-            <div className="p-8 text-center text-sm text-gray-400">
-              {search ? "該当する用語がありません" : "用語がまだありません"}
+            <div className="p-8 text-center text-sm text-[color:var(--md-sys-color-on-surface-variant)]">
+              {search ? "一致する用語がありません" : "用語がまだありません"}
             </div>
           ) : (
             filtered.map((term) => (
-              <div key={term.termId} className="p-4 hover:bg-gray-50">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-medium text-sm">{term.surface}</span>
+              <div
+                key={term.termId}
+                className="p-4 transition-colors hover:bg-[color:var(--md-sys-color-surface-container-low)]"
+              >
+                <div className="mb-1 flex items-center gap-2">
+                  <span className="text-sm font-medium text-foreground">
+                    {term.surface}
+                  </span>
                   <Badge
                     variant="secondary"
-                    className={`text-[10px] px-1.5 py-0 ${categoryColors[term.category] || ""}`}
+                    className={`px-1.5 py-0 text-[10px] ${categoryClassNames[term.category] || ""}`}
                   >
                     {categoryLabels[term.category] || term.category}
                   </Badge>
                 </div>
+
                 {term.reading && (
-                  <p className="text-xs text-gray-400 mb-1">{term.reading}</p>
+                  <p className="mb-1 text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
+                    {term.reading}
+                  </p>
                 )}
-                <p className="text-xs text-gray-600 leading-relaxed">
+
+                <p className="text-xs leading-relaxed text-[color:var(--md-sys-color-on-surface-variant)]">
                   {term.definition}
                 </p>
+
                 {onJumpToMessage && (
                   <button
                     onClick={() => onJumpToMessage(term.messageId)}
-                    className="text-xs text-blue-500 hover:text-blue-700 mt-2"
+                    className="mt-2 text-xs text-primary hover:underline"
                   >
-                    出現箇所を表示
+                    出現した会話を開く
                   </button>
                 )}
               </div>

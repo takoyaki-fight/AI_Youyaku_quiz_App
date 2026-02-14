@@ -9,10 +9,15 @@ interface ChatResult {
   completionTokens: number;
 }
 
+const TITLE_TARGET_LENGTH = 12;
+const TITLE_MAX_LENGTH = 20;
+
+function clampTitleLength(text: string): string {
+  return Array.from(text).slice(0, TITLE_MAX_LENGTH).join("");
+}
+
 function buildContents(history: Message[], userMessage: string): Content[] {
   const contents: Content[] = [];
-
-  // 直近20件に制限
   const recent = history.slice(-20);
 
   for (const msg of recent) {
@@ -22,7 +27,6 @@ function buildContents(history: Message[], userMessage: string): Content[] {
     });
   }
 
-  // 新しいユーザーメッセージ
   contents.push({
     role: "user",
     parts: [{ text: userMessage }],
@@ -46,9 +50,7 @@ export async function generateChatResponse(
   });
 
   const response = result.response;
-  const text =
-    response.candidates?.[0]?.content?.parts?.[0]?.text || "";
-
+  const text = response.candidates?.[0]?.content?.parts?.[0]?.text || "";
   const usage = response.usageMetadata;
 
   return {
@@ -59,7 +61,8 @@ export async function generateChatResponse(
 }
 
 export async function generateConversationTitle(
-  userMessage: string
+  userMessage: string,
+  assistantMessage?: string
 ): Promise<string> {
   const result = await chatModel.generateContent({
     contents: [
@@ -67,15 +70,30 @@ export async function generateConversationTitle(
         role: "user",
         parts: [
           {
-            text: `以下のユーザーメッセージに対して、会話のタイトルを10文字〜20文字程度の日本語で1つだけ生成してください。タイトルのみを出力してください。\n\nメッセージ: ${userMessage}`,
+            text: [
+              "以下の会話情報から、会話一覧に表示する短い日本語タイトルを1つ作成してください。",
+              "要件:",
+              `- 目安は${TITLE_TARGET_LENGTH}文字前後、最大${TITLE_MAX_LENGTH}文字`,
+              "- 会話の主題を要約する（質問文をそのまま短縮しない）",
+              "- 疑問形や口語を避け、名詞句でまとめる",
+              '- 例: 「なんで通勤手当に社会保険料がかかるんですか？」 -> 「通勤手当に社会保険料がかかる理由」',
+              "- タイトル本文のみを出力（改行・引用符なし）",
+              "",
+              `ユーザー初回メッセージ: ${userMessage}`,
+              `AI初回応答: ${assistantMessage ?? ""}`,
+            ].join("\n"),
           },
         ],
       },
     ],
   });
 
-  const title =
-    result.response.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+  const title = result.response.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  const cleaned = title
+    .replace(/[\r\n]+/g, " ")
+    .replace(/[「」『』【】"'`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 
-  return title.length > 30 ? title.substring(0, 30) : title;
+  return clampTitleLength(cleaned);
 }

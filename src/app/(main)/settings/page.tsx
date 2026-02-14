@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { SettingsForm } from "@/components/settings/SettingsForm";
 import { apiGet } from "@/lib/api-client";
 import { toast } from "sonner";
+import { Settings } from "lucide-react";
 
 interface SettingsData {
   dailyQuizEnabled: boolean;
@@ -25,15 +26,25 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-3.5rem)]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+      <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
       </div>
     );
   }
 
   return (
-    <div className="max-w-lg mx-auto p-6">
-      <h1 className="text-xl font-bold mb-6">設定</h1>
+    <div className="mx-auto max-w-lg p-6">
+      <div className="mb-6 flex items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-[var(--md-shape-md)] bg-[color:var(--md-sys-color-secondary-container)] text-[color:var(--md-sys-color-on-secondary-container)] shadow-[var(--md-elevation-1)]">
+          <Settings className="h-5 w-5" />
+        </div>
+        <div>
+          <h1 className="text-xl font-semibold text-foreground">設定</h1>
+          <p className="text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
+            学習アシスタントの挙動を調整
+          </p>
+        </div>
+      </div>
       {settings && <SettingsForm initialSettings={settings} />}
     </div>
   );

@@ -1,4 +1,5 @@
 export type { Conversation } from "./conversation";
+export type { ConversationSheet } from "./conversation-sheet";
 export type { Message } from "./message";
 export type { Material, Term, Mention } from "./material";
 export type { DailyQuiz, QuizCard } from "./daily-quiz";

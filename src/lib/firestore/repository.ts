@@ -2,6 +2,7 @@ import { db } from "@/lib/firebase/admin";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import type { User } from "@/types/user";
 import type { Conversation } from "@/types/conversation";
+import type { ConversationSheet } from "@/types/conversation-sheet";
 import type { Message } from "@/types/message";
 import type { Material } from "@/types/material";
 import type { DailyQuiz } from "@/types/daily-quiz";
@@ -133,6 +134,8 @@ export async function deleteConversationCascade(
     .collection(`${basePath}/materials`)
     .listDocuments();
   materials.forEach((doc) => batch.delete(doc));
+  const sheets = await db.collection(`${basePath}/sheets`).listDocuments();
+  sheets.forEach((doc) => batch.delete(doc));
 
   // 会話ドキュメント本体を削除
   batch.delete(db.doc(basePath));
@@ -175,11 +178,156 @@ export async function updateConversationTitle(
 ): Promise<void> {
   await db.doc(`users/${userId}/conversations/${conversationId}`).update({
     title,
-    updatedAt: FieldValue.serverTimestamp(),
   });
 }
 
 // ─── Messages ───────────────────────────────────────
+
+export async function listConversationSheets(
+  userId: string,
+  conversationId: string,
+  limit = 100
+): Promise<ConversationSheet[]> {
+  const snap = await db
+    .collection(`users/${userId}/conversations/${conversationId}/sheets`)
+    .orderBy("updatedAt", "desc")
+    .limit(limit)
+    .get();
+  return snap.docs.map((d) => d.data() as ConversationSheet);
+}
+
+export interface SummarySheetListItem {
+  conversationId: string;
+  conversationTitle: string;
+  sheetId: string;
+  title: string;
+  markdown: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export async function listSummarySheets(
+  userId: string,
+  limit = 50
+): Promise<SummarySheetListItem[]> {
+  const conversations = await listConversations(userId);
+
+  const rows = await Promise.all(
+    conversations.map(async (conversation) => {
+      const sheets = await listConversationSheets(
+        userId,
+        conversation.conversationId,
+        1
+      );
+      const latest = sheets[0];
+      if (!latest) {
+        return null;
+      }
+
+      return {
+        conversationId: conversation.conversationId,
+        conversationTitle: conversation.title,
+        sheetId: latest.sheetId,
+        title: latest.title,
+        markdown: latest.markdown,
+        createdAt: latest.createdAt,
+        updatedAt: latest.updatedAt,
+      } satisfies SummarySheetListItem;
+    })
+  );
+
+  return rows
+    .filter((row): row is SummarySheetListItem => row !== null)
+    .sort((a, b) => b.updatedAt.toMillis() - a.updatedAt.toMillis())
+    .slice(0, limit);
+}
+
+export async function createConversationSheet(
+  userId: string,
+  conversationId: string,
+  sheetId: string,
+  title: string,
+  markdown: string
+): Promise<ConversationSheet> {
+  const conversationRef = db.doc(`users/${userId}/conversations/${conversationId}`);
+  const conversationDoc = await conversationRef.get();
+
+  if (!conversationDoc.exists) {
+    throw new Error("CONVERSATION_NOT_FOUND");
+  }
+
+  const conversation = conversationDoc.data() as Conversation;
+  const now = Timestamp.now();
+  const data: ConversationSheet = {
+    sheetId,
+    title,
+    markdown,
+    createdAt: now,
+    updatedAt: now,
+    expireAt: conversation.expireAt,
+  };
+
+  const sheetRef = db.doc(
+    `users/${userId}/conversations/${conversationId}/sheets/${sheetId}`
+  );
+  await sheetRef.set(data);
+  await conversationRef.update({ updatedAt: FieldValue.serverTimestamp() });
+  return data;
+}
+
+export async function getConversationSheet(
+  userId: string,
+  conversationId: string,
+  sheetId: string
+): Promise<ConversationSheet | null> {
+  const doc = await db
+    .doc(`users/${userId}/conversations/${conversationId}/sheets/${sheetId}`)
+    .get();
+  return doc.exists ? (doc.data() as ConversationSheet) : null;
+}
+
+export async function updateConversationSheet(
+  userId: string,
+  conversationId: string,
+  sheetId: string,
+  updates: Partial<Pick<ConversationSheet, "title" | "markdown">>
+): Promise<ConversationSheet> {
+  const ref = db.doc(
+    `users/${userId}/conversations/${conversationId}/sheets/${sheetId}`
+  );
+
+  const payload: Partial<ConversationSheet> = {
+    updatedAt: Timestamp.now(),
+  };
+
+  if (typeof updates.title === "string") {
+    payload.title = updates.title;
+  }
+  if (typeof updates.markdown === "string") {
+    payload.markdown = updates.markdown;
+  }
+
+  await ref.update(payload);
+  await db.doc(`users/${userId}/conversations/${conversationId}`).update({
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  const doc = await ref.get();
+  return doc.data() as ConversationSheet;
+}
+
+export async function deleteConversationSheet(
+  userId: string,
+  conversationId: string,
+  sheetId: string
+): Promise<void> {
+  await db
+    .doc(`users/${userId}/conversations/${conversationId}/sheets/${sheetId}`)
+    .delete();
+  await db.doc(`users/${userId}/conversations/${conversationId}`).update({
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+}
 
 export async function addMessage(
   userId: string,
@@ -279,26 +427,88 @@ export async function getActiveDailyQuiz(
   userId: string,
   targetDate: string
 ): Promise<DailyQuiz | null> {
-  const snap = await db
-    .collection(`users/${userId}/dailyQuizzes`)
-    .where("targetDate", "==", targetDate)
-    .where("isActive", "==", true)
-    .limit(1)
-    .get();
-  return snap.empty ? null : (snap.docs[0].data() as DailyQuiz);
+  const quizzesRef = db.collection(`users/${userId}/dailyQuizzes`);
+
+  try {
+    const snap = await quizzesRef
+      .where("targetDate", "==", targetDate)
+      .where("isActive", "==", true)
+      .limit(1)
+      .get();
+    return snap.empty ? null : (snap.docs[0].data() as DailyQuiz);
+  } catch (error) {
+    if (!isMissingIndexError(error)) {
+      throw error;
+    }
+
+    const fallbackSnap = await quizzesRef
+      .where("targetDate", "==", targetDate)
+      .get();
+    const activeQuizzes = fallbackSnap.docs
+      .map((d) => d.data() as DailyQuiz)
+      .filter((quiz) => quiz.isActive);
+
+    if (!activeQuizzes.length) {
+      return null;
+    }
+
+    activeQuizzes.sort((a, b) => b.version - a.version);
+    return activeQuizzes[0];
+  }
 }
 
 export async function listDailyQuizzes(
   userId: string,
   limit = 30
 ): Promise<DailyQuiz[]> {
-  const snap = await db
-    .collection(`users/${userId}/dailyQuizzes`)
-    .where("isActive", "==", true)
-    .orderBy("targetDate", "desc")
-    .limit(limit)
-    .get();
-  return snap.docs.map((d) => d.data() as DailyQuiz);
+  const quizzesRef = db.collection(`users/${userId}/dailyQuizzes`);
+
+  try {
+    const snap = await quizzesRef
+      .where("isActive", "==", true)
+      .orderBy("targetDate", "desc")
+      .limit(limit)
+      .get();
+    return snap.docs.map((d) => d.data() as DailyQuiz);
+  } catch (error) {
+    if (!isMissingIndexError(error)) {
+      throw error;
+    }
+
+    const fallbackLimit = Math.max(limit * 3, 100);
+    const fallbackSnap = await quizzesRef
+      .orderBy("targetDate", "desc")
+      .limit(fallbackLimit)
+      .get();
+
+    return fallbackSnap.docs
+      .map((d) => d.data() as DailyQuiz)
+      .filter((quiz) => quiz.isActive)
+      .slice(0, limit);
+  }
+}
+
+function isMissingIndexError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const maybeError = error as { code?: unknown; message?: unknown };
+  const code = maybeError.code;
+
+  if (
+    code === 9 ||
+    code === "9" ||
+    code === "failed-precondition" ||
+    code === "FAILED_PRECONDITION"
+  ) {
+    return true;
+  }
+
+  return (
+    typeof maybeError.message === "string" &&
+    maybeError.message.includes("requires an index")
+  );
 }
 
 // ─── Generation Logs ────────────────────────────────
