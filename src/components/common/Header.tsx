@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/firebase/auth-context";
+import { apiPost } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { BrandLogo } from "@/components/common/BrandLogo";
+import { toast } from "sonner";
+import { v4 as uuidv4 } from "uuid";
 import {
   MessageSquare,
   BrainCircuit,
@@ -14,12 +17,20 @@ import {
   LogOut,
   Menu,
   X,
+  Loader2,
+  Plus,
 } from "lucide-react";
+
+interface CreatedConversation {
+  conversationId: string;
+}
 
 export function Header() {
   const { user, signOut } = useAuth();
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [creatingConversation, setCreatingConversation] = useState(false);
 
   if (!user) return null;
 
@@ -31,6 +42,25 @@ export function Header() {
   ];
 
   const displayName = user.displayName || "User";
+
+  const handleCreateConversation = async () => {
+    if (creatingConversation) return;
+    setCreatingConversation(true);
+    try {
+      const conversation = await apiPost<CreatedConversation>(
+        "/api/v1/conversations",
+        { title: "新しい会話" },
+        uuidv4()
+      );
+      setMobileMenuOpen(false);
+      window.dispatchEvent(new Event("conversations:refresh"));
+      router.push(`/chat/${conversation.conversationId}`);
+    } catch {
+      toast.error("新しい会話の作成に失敗しました");
+    } finally {
+      setCreatingConversation(false);
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/70 bg-[color:var(--md-sys-color-surface-container-low)]/90 backdrop-blur-md">
@@ -91,7 +121,7 @@ export function Header() {
             type="button"
             className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[color:var(--md-sys-color-on-surface-variant)] transition-colors hover:bg-[color:var(--md-sys-color-surface-container)] md:hidden"
             onClick={() => setMobileMenuOpen((prev) => !prev)}
-            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-label={mobileMenuOpen ? "メニューを閉じる" : "メニューを開く"}
           >
             {mobileMenuOpen ? (
               <X className="h-5 w-5" />
@@ -104,6 +134,22 @@ export function Header() {
 
       {mobileMenuOpen && (
         <div className="border-t border-border/70 bg-[color:var(--md-sys-color-surface-container-low)] p-3 md:hidden">
+          <Button
+            type="button"
+            onClick={() => {
+              void handleCreateConversation();
+            }}
+            disabled={creatingConversation}
+            className="mb-3 w-full justify-center"
+          >
+            {creatingConversation ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="mr-2 h-4 w-4" />
+            )}
+            {creatingConversation ? "作成中..." : "新しい会話"}
+          </Button>
+
           <nav className="flex flex-col gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
