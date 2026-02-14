@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -24,7 +24,7 @@ export function ConversationSidebar() {
   const params = useParams();
   const currentId = params.conversationId as string | undefined;
 
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     try {
       const data = await apiGet<{ conversations: ConversationItem[] }>(
         "/api/v1/conversations"
@@ -35,11 +35,22 @@ export function ConversationSidebar() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchConversations();
-  }, []);
+    void fetchConversations();
+  }, [fetchConversations]);
+
+  useEffect(() => {
+    const onRefresh = () => {
+      void fetchConversations();
+    };
+
+    window.addEventListener("conversations:refresh", onRefresh);
+    return () => {
+      window.removeEventListener("conversations:refresh", onRefresh);
+    };
+  }, [fetchConversations]);
 
   const handleCreate = async () => {
     setCreating(true);
@@ -59,7 +70,7 @@ export function ConversationSidebar() {
   };
 
   return (
-    <div className="w-64 border-r bg-gray-50/50 flex-col h-full hidden md:flex">
+    <div className="hidden h-full min-h-0 w-64 flex-col overflow-hidden border-r bg-gray-50/50 md:flex">
       <div className="p-3 border-b bg-white/50">
         <Button
           onClick={handleCreate}
@@ -75,7 +86,7 @@ export function ConversationSidebar() {
           {creating ? "作成中..." : "新しい会話"}
         </Button>
       </div>
-      <ScrollArea className="flex-1">
+      <ScrollArea className="min-h-0 flex-1">
         {loading ? (
           <div className="p-6 flex flex-col items-center gap-2 text-gray-400">
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -94,7 +105,7 @@ export function ConversationSidebar() {
                 <button
                   key={conv.conversationId}
                   onClick={() => router.push(`/chat/${conv.conversationId}`)}
-                  className={`w-full text-left px-3 py-2.5 text-sm rounded-lg mb-0.5 truncate transition-all ${
+                  className={`w-full text-left px-3 py-2.5 text-sm rounded-lg mb-0.5 transition-all ${
                     isActive
                       ? "bg-white font-medium shadow-sm border border-gray-200/80 text-gray-900"
                       : "text-gray-600 hover:bg-white/80 hover:text-gray-900"
@@ -102,7 +113,9 @@ export function ConversationSidebar() {
                 >
                   <div className="flex items-center gap-2">
                     <MessageCircle className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-blue-600" : "text-gray-400"}`} />
-                    <span className="truncate">{conv.title}</span>
+                    <span className="min-w-0 break-words whitespace-normal leading-snug">
+                      {conv.title}
+                    </span>
                   </div>
                 </button>
               );

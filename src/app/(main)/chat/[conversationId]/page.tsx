@@ -195,6 +195,7 @@ export default function ChatPage() {
           result.userMessage,
           assistantWithMaterial,
         ]);
+        window.dispatchEvent(new Event("conversations:refresh"));
       } catch {
         toast.error("Failed to send message");
         setMessages((prev) =>
@@ -218,10 +219,10 @@ export default function ChatPage() {
   }
 
   return (
-    <>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       <ChatHeader />
       <MessageList messages={messages} loading={sending} />
       <MessageInput onSend={handleSend} disabled={sending} />
-    </>
+    </div>
   );
 }

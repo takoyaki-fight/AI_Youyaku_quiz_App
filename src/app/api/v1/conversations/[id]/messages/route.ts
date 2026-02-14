@@ -22,7 +22,9 @@ import { MODEL_NAME } from "@/lib/vertex-ai/client";
 import { v4 as uuidv4 } from "uuid";
 
 const AI_TIMEOUT_MS = Number(process.env.CHAT_AI_TIMEOUT_MS || 0);
-const TITLE_TIMEOUT_MS = Number(process.env.TITLE_AI_TIMEOUT_MS || 2000);
+const TITLE_TIMEOUT_MS = Number(process.env.TITLE_AI_TIMEOUT_MS || 6000);
+const TITLE_MAX_LENGTH = 20;
+const TITLE_FALLBACK = "学習トピック";
 
 type ChatResult = {
   text: string;
@@ -38,6 +40,111 @@ function buildFallbackAssistantReply(userMessage: string): string {
     "",
     "Please retry in a moment.",
   ].join("\n");
+}
+
+function clampTitleLength(text: string): string {
+  return Array.from(text).slice(0, TITLE_MAX_LENGTH).join("");
+}
+
+function normalizeTitle(text: string | null | undefined): string {
+  if (!text) return "";
+
+  const cleaned = text
+    .replace(/[\r\n]+/g, " ")
+    .replace(/[「」『』【】"'`]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleaned) return "";
+  return clampTitleLength(cleaned);
+}
+
+function firstClause(text: string): string {
+  const chunks = text
+    .replace(/[\r\n]+/g, " ")
+    .split(/[。！？!?]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  return chunks[0] || "";
+}
+
+function buildFallbackTitle(userMessage: string, assistantMessage?: string): string {
+  const normalizedUser = normalizeTitle(userMessage);
+  if (!normalizedUser) return TITLE_FALLBACK;
+
+  const isWhyQuestion = /^(なんで|なぜ|どうして)/u.test(normalizedUser);
+
+  let summary = normalizedUser
+    .replace(/^(なんで|なぜ|どうして|どうやって|教えて|解説して|説明して)\s*/u, "")
+    .replace(
+      /(ですか|ますか|でしょうか|なんですか|って何|とは何|について教えて|を教えて|を解説して|を説明して)\s*$/u,
+      ""
+    )
+    .replace(/[?？!！]+$/g, "")
+    .trim();
+
+  if (!summary) {
+    summary = firstClause(normalizedUser);
+  }
+
+  if (isWhyQuestion && summary && !summary.endsWith("理由")) {
+    summary = `${summary}理由`;
+  }
+
+  if (summary.length < 4 && assistantMessage) {
+    summary = firstClause(normalizeTitle(assistantMessage));
+  }
+
+  if (!summary || summary.length < 4) {
+    return TITLE_FALLBACK;
+  }
+
+  return clampTitleLength(summary);
+}
+
+function sharedPrefixLength(a: string, b: string): number {
+  const aChars = Array.from(a);
+  const bChars = Array.from(b);
+  const len = Math.min(aChars.length, bChars.length);
+
+  let i = 0;
+  while (i < len && aChars[i] === bChars[i]) {
+    i += 1;
+  }
+  return i;
+}
+
+function isLowQualityTitle(title: string, userMessage: string): boolean {
+  const normalizedTitle = normalizeTitle(title);
+  const normalizedMessage = normalizeTitle(userMessage);
+
+  if (!normalizedTitle) return true;
+  if (normalizedTitle.length < 4) return true;
+  if (/[?？]/.test(title)) return true;
+  if (/(ですか|ますか|でしょうか|なんですか|か)$/u.test(normalizedTitle)) {
+    return true;
+  }
+  if (/^(なんで|なぜ|どうして|どうやって)/u.test(normalizedTitle)) {
+    return true;
+  }
+
+  if (!normalizedMessage) return false;
+  if (normalizedTitle === normalizedMessage) return true;
+
+  const prefix = sharedPrefixLength(normalizedTitle, normalizedMessage);
+  if (prefix >= 6 && prefix / normalizedTitle.length >= 0.75) {
+    return true;
+  }
+
+  if (
+    normalizedMessage.includes(normalizedTitle) &&
+    normalizedTitle.length >= 8
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 async function generateChatWithTimeout(
@@ -192,12 +299,18 @@ export async function POST(
 
   if (conversation.messageCount === 0) {
     try {
-      const title = await withTimeout(
-        generateConversationTitle(content),
+      const assistantForTitle = usedFallback ? "" : chatResult.text;
+      const generatedTitle = await withTimeout(
+        generateConversationTitle(content, assistantForTitle),
         TITLE_TIMEOUT_MS
       );
-      if (title) {
-        await updateConversationTitle(userId, conversationId, title);
+      const normalizedTitle = normalizeTitle(generatedTitle);
+      const nextTitle = isLowQualityTitle(normalizedTitle, content)
+        ? buildFallbackTitle(content, assistantForTitle)
+        : normalizedTitle;
+
+      if (nextTitle && nextTitle !== conversation.title) {
+        await updateConversationTitle(userId, conversationId, nextTitle);
       }
     } catch {
       // Ignore title generation failure.

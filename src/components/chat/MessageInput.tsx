@@ -41,7 +41,7 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
   const canSend = value.trim() && !disabled;
 
   return (
-    <div className="border-t bg-white/80 backdrop-blur-sm p-4">
+    <div className="sticky bottom-0 z-20 border-t bg-white/90 p-4 backdrop-blur-sm">
       <div className="flex gap-2 max-w-4xl mx-auto items-end">
         <div className="flex-1">
           <Textarea

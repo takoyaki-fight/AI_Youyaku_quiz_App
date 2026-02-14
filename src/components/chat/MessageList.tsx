@@ -42,7 +42,7 @@ export function MessageList({ messages, loading }: MessageListProps) {
   }, [messages]);
 
   return (
-    <ScrollArea className="flex-1 p-4">
+    <ScrollArea className="min-h-0 flex-1 p-4">
       <div className="max-w-4xl mx-auto">
         {messages.length === 0 && !loading && (
           <div className="flex items-center justify-center h-full text-gray-400 text-sm">
