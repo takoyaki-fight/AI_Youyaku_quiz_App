@@ -2,6 +2,7 @@ import { db } from "@/lib/firebase/admin";
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import type { User } from "@/types/user";
 import type { Conversation } from "@/types/conversation";
+import type { ConversationSheet } from "@/types/conversation-sheet";
 import type { Message } from "@/types/message";
 import type { Material } from "@/types/material";
 import type { DailyQuiz } from "@/types/daily-quiz";
@@ -133,6 +134,8 @@ export async function deleteConversationCascade(
     .collection(`${basePath}/materials`)
     .listDocuments();
   materials.forEach((doc) => batch.delete(doc));
+  const sheets = await db.collection(`${basePath}/sheets`).listDocuments();
+  sheets.forEach((doc) => batch.delete(doc));
 
   // 会話ドキュメント本体を削除
   batch.delete(db.doc(basePath));
@@ -179,6 +182,106 @@ export async function updateConversationTitle(
 }
 
 // ─── Messages ───────────────────────────────────────
+
+export async function listConversationSheets(
+  userId: string,
+  conversationId: string,
+  limit = 100
+): Promise<ConversationSheet[]> {
+  const snap = await db
+    .collection(`users/${userId}/conversations/${conversationId}/sheets`)
+    .orderBy("updatedAt", "desc")
+    .limit(limit)
+    .get();
+  return snap.docs.map((d) => d.data() as ConversationSheet);
+}
+
+export async function createConversationSheet(
+  userId: string,
+  conversationId: string,
+  sheetId: string,
+  title: string,
+  markdown: string
+): Promise<ConversationSheet> {
+  const conversationRef = db.doc(`users/${userId}/conversations/${conversationId}`);
+  const conversationDoc = await conversationRef.get();
+
+  if (!conversationDoc.exists) {
+    throw new Error("CONVERSATION_NOT_FOUND");
+  }
+
+  const conversation = conversationDoc.data() as Conversation;
+  const now = Timestamp.now();
+  const data: ConversationSheet = {
+    sheetId,
+    title,
+    markdown,
+    createdAt: now,
+    updatedAt: now,
+    expireAt: conversation.expireAt,
+  };
+
+  const sheetRef = db.doc(
+    `users/${userId}/conversations/${conversationId}/sheets/${sheetId}`
+  );
+  await sheetRef.set(data);
+  await conversationRef.update({ updatedAt: FieldValue.serverTimestamp() });
+  return data;
+}
+
+export async function getConversationSheet(
+  userId: string,
+  conversationId: string,
+  sheetId: string
+): Promise<ConversationSheet | null> {
+  const doc = await db
+    .doc(`users/${userId}/conversations/${conversationId}/sheets/${sheetId}`)
+    .get();
+  return doc.exists ? (doc.data() as ConversationSheet) : null;
+}
+
+export async function updateConversationSheet(
+  userId: string,
+  conversationId: string,
+  sheetId: string,
+  updates: Partial<Pick<ConversationSheet, "title" | "markdown">>
+): Promise<ConversationSheet> {
+  const ref = db.doc(
+    `users/${userId}/conversations/${conversationId}/sheets/${sheetId}`
+  );
+
+  const payload: Partial<ConversationSheet> = {
+    updatedAt: Timestamp.now(),
+  };
+
+  if (typeof updates.title === "string") {
+    payload.title = updates.title;
+  }
+  if (typeof updates.markdown === "string") {
+    payload.markdown = updates.markdown;
+  }
+
+  await ref.update(payload);
+  await db.doc(`users/${userId}/conversations/${conversationId}`).update({
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+
+  const doc = await ref.get();
+  return doc.data() as ConversationSheet;
+}
+
+export async function deleteConversationSheet(
+  userId: string,
+  conversationId: string,
+  sheetId: string
+): Promise<void> {
+  await db
+    .doc(`users/${userId}/conversations/${conversationId}/sheets/${sheetId}`)
+    .delete();
+  await db.doc(`users/${userId}/conversations/${conversationId}`).update({
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+}
 
 export async function addMessage(
   userId: string,

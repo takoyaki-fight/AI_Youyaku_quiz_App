@@ -17,6 +17,7 @@ import {
   generateConversationTitle,
 } from "@/lib/vertex-ai/chat";
 import { generateAndSaveMaterial } from "@/lib/services/material.service";
+import { syncAutoConversationSheet } from "@/lib/services/conversation-sheet.service";
 import { checkRateLimit, RATE_LIMITS } from "@/lib/middleware/rate-limit";
 import { MODEL_NAME } from "@/lib/vertex-ai/client";
 import { v4 as uuidv4 } from "uuid";
@@ -315,6 +316,17 @@ export async function POST(
     } catch {
       // Ignore title generation failure.
     }
+  }
+
+  if (!usedFallback) {
+    const historyWithAssistant = [...history, assistantMessage];
+    void syncAutoConversationSheet(
+      userId,
+      conversationId,
+      historyWithAssistant
+    ).catch((error) => {
+      console.error("Conversation sheet sync failed:", error);
+    });
   }
 
   const result = { userMessage, assistantMessage, material };
