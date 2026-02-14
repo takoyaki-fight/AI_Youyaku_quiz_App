@@ -38,16 +38,14 @@ function SectionSwitch({
       onClick={onToggle}
       data-slot="button"
       aria-pressed={checked}
-      className={`inline-flex h-7 w-12 shrink-0 items-center overflow-hidden rounded-full p-0.5 transition-colors duration-200 hover:brightness-95 ${
-        checked
+      className={`inline-flex h-7 w-12 shrink-0 items-center overflow-hidden rounded-full p-0.5 transition-colors duration-200 hover:brightness-95 ${checked
           ? "bg-primary"
           : "bg-[color:color-mix(in_srgb,var(--md-sys-color-outline),transparent_35%)]"
-      }`}
+        }`}
     >
       <span
-        className={`h-6 w-6 rounded-full bg-white shadow-[var(--md-elevation-1)] transition-transform duration-200 ${
-          checked ? "translate-x-5" : "translate-x-0"
-        }`}
+        className={`h-6 w-6 rounded-full bg-white shadow-[var(--md-elevation-1)] transition-transform duration-200 ${checked ? "translate-x-5" : "translate-x-0"
+          }`}
       />
     </button>
   );
@@ -78,7 +76,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
               <BrainCircuit className="h-4 w-4" />
             </div>
             <div>
-              <CardTitle className="text-sm">Daily Quiz設定</CardTitle>
+              <CardTitle className="text-sm">デイリークイズ設定</CardTitle>
               <CardDescription className="text-xs">
                 復習カード生成の挙動を調整します
               </CardDescription>
@@ -90,7 +88,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
           <div className="flex items-center justify-between rounded-[var(--md-shape-md)] border border-border/70 bg-[color:var(--md-sys-color-surface-container-low)] p-3">
             <div>
               <label className="text-sm font-medium text-foreground">
-                日次Q&Aの自動生成
+                デイリークイズの自動生成
               </label>
               <p className="mt-0.5 text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
                 毎朝 07:00 に前日の会話からQ&Aを生成します
