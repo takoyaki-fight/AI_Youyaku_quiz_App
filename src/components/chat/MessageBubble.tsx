@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { SummaryAccordion } from "./SummaryAccordion";
 import { MarkdownContent } from "./MarkdownContent";
 import { Bot, User } from "lucide-react";
@@ -31,8 +32,26 @@ interface MessageBubbleProps {
   material?: MaterialData | null;
 }
 
+interface FollowupTurn {
+  question: string;
+  answer: string;
+}
+
 export function MessageBubble({ role, content, material }: MessageBubbleProps) {
   const isUser = role === "user";
+  const [termFollowupTurns, setTermFollowupTurns] = useState<
+    Record<string, FollowupTurn[]>
+  >({});
+
+  const handleAppendTermFollowupTurn = useCallback(
+    (termKey: string, turn: FollowupTurn) => {
+      setTermFollowupTurns((prev) => ({
+        ...prev,
+        [termKey]: [...(prev[termKey] ?? []), turn],
+      }));
+    },
+    []
+  );
 
   return (
     <div className={`mb-5 flex gap-2.5 ${isUser ? "justify-end" : "justify-start"}`}>
@@ -54,6 +73,8 @@ export function MessageBubble({ role, content, material }: MessageBubbleProps) {
           isUser={isUser}
           mentions={!isUser ? material?.mentions ?? [] : []}
           terms={!isUser ? material?.terms ?? [] : []}
+          termFollowupTurns={termFollowupTurns}
+          onAppendTermFollowupTurn={handleAppendTermFollowupTurn}
         />
         {!isUser && material?.summary && material.summary.length > 0 && (
           <SummaryAccordion summary={material.summary} />

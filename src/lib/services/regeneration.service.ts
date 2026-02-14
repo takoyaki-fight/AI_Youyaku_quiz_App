@@ -3,8 +3,6 @@ import { Timestamp } from "firebase-admin/firestore";
 import {
   getMessages,
   getConversation,
-  saveMaterial,
-  saveDailyQuiz,
   saveGenerationLog,
 } from "@/lib/firestore/repository";
 import { generateMaterial } from "@/lib/vertex-ai/material";
@@ -15,14 +13,33 @@ import type { Message } from "@/types/message";
 import { MODEL_NAME } from "@/lib/vertex-ai/client";
 import { v4 as uuidv4 } from "uuid";
 
-// ─── 素材再生成 ─────────────────────────────────────
+type DailyQuizCard = DailyQuiz["cards"][number];
+
+function resolveConversationIdFromCard(
+  card: DailyQuizCard,
+  validConversationIds: Set<string>,
+  messageIdToConversationId: Map<string, string>
+): string {
+  if (card.conversationId && validConversationIds.has(card.conversationId)) {
+    return card.conversationId;
+  }
+
+  for (const sourceMessageId of card.sources || []) {
+    const mappedConversationId = messageIdToConversationId.get(sourceMessageId);
+    if (mappedConversationId) {
+      return mappedConversationId;
+    }
+  }
+
+  const firstConversationId = validConversationIds.values().next().value;
+  return typeof firstConversationId === "string" ? firstConversationId : "";
+}
 
 export async function regenerateMaterial(
   userId: string,
   conversationId: string,
   messageId: string
 ): Promise<{ material: Material; previousVersion: number; currentVersion: number }> {
-  // 現在のmax versionを取得
   const versionsSnap = await db
     .collection(`users/${userId}/conversations/${conversationId}/materials`)
     .where("messageId", "==", messageId)
@@ -35,18 +52,17 @@ export async function regenerateMaterial(
     : (versionsSnap.docs[0].data() as Material).version;
   const newVersion = maxVersion + 1;
 
-  // 会話情報
   const conversation = await getConversation(userId, conversationId);
-  if (!conversation) throw new Error("Conversation not found");
+  if (!conversation) {
+    throw new Error("Conversation not found");
+  }
 
-  // メッセージ取得
   const messages = await getMessages(userId, conversationId, 20);
   const targetMsg = messages.find((m) => m.messageId === messageId);
   if (!targetMsg || targetMsg.role !== "assistant") {
     throw new Error("Target assistant message not found");
   }
 
-  // 素材生成
   const startTime = Date.now();
   const result = await generateMaterial(messages, targetMsg.content);
 
@@ -67,7 +83,6 @@ export async function regenerateMaterial(
     expireAt: conversation.expireAt,
   };
 
-  // トランザクション: 旧active→false、新版→active
   const batch = db.batch();
 
   if (!versionsSnap.empty) {
@@ -76,12 +91,13 @@ export async function regenerateMaterial(
         batch.update(doc.ref, { isActive: false });
       }
     }
-    // 全active版を無効化
+
     const allActiveSnap = await db
       .collection(`users/${userId}/conversations/${conversationId}/materials`)
       .where("messageId", "==", messageId)
       .where("isActive", "==", true)
       .get();
+
     for (const doc of allActiveSnap.docs) {
       batch.update(doc.ref, { isActive: false });
     }
@@ -92,7 +108,6 @@ export async function regenerateMaterial(
   );
   batch.set(newRef, material);
 
-  // メッセージのactiveMaterialVersionを更新
   const msgRef = db.doc(
     `users/${userId}/conversations/${conversationId}/messages/${messageId}`
   );
@@ -100,7 +115,6 @@ export async function regenerateMaterial(
 
   await batch.commit();
 
-  // ログ
   await saveGenerationLog(userId, {
     logId: uuidv4(),
     type: "regeneration",
@@ -115,13 +129,10 @@ export async function regenerateMaterial(
   return { material, previousVersion: maxVersion, currentVersion: newVersion };
 }
 
-// ─── Q&A再生成 ──────────────────────────────────────
-
 export async function regenerateDailyQuiz(
   userId: string,
   targetDate: string
 ): Promise<{ quiz: DailyQuiz; previousVersion: number; currentVersion: number }> {
-  // 現在のmax versionを取得
   const versionsSnap = await db
     .collection(`users/${userId}/dailyQuizzes`)
     .where("targetDate", "==", targetDate)
@@ -134,23 +145,23 @@ export async function regenerateDailyQuiz(
     : (versionsSnap.docs[0].data() as DailyQuiz).version;
   const newVersion = maxVersion + 1;
 
-  // 元のQ&Aからconversation情報を取得して再生成
   const originalQuiz = versionsSnap.empty
     ? null
     : (versionsSnap.docs[0].data() as DailyQuiz);
 
-  // 会話IDを集約
   const convIds = new Set<string>();
   if (originalQuiz) {
     for (const card of originalQuiz.cards) {
-      if (card.conversationId) convIds.add(card.conversationId);
+      if (card.conversationId) {
+        convIds.add(card.conversationId);
+      }
     }
   }
 
-  // 会話のメッセージを取得してQ&A再生成
   const startTime = Date.now();
   let allText = "";
   let totalCards = 0;
+  const messageIdToConversationId = new Map<string, string>();
 
   for (const convId of convIds) {
     const msgsSnap = await db
@@ -160,12 +171,16 @@ export async function regenerateDailyQuiz(
       .get();
 
     const messages = msgsSnap.docs.map((d) => d.data() as Message);
+    for (const message of messages) {
+      messageIdToConversationId.set(message.messageId, convId);
+    }
+
     const text = messages
       .map((m) => `[${m.role}] (messageId: ${m.messageId})\n${m.content}`)
       .join("\n\n---\n\n");
 
-    allText += `### 会話ID: ${convId}\n\n${text}\n\n`;
-    totalCards += 5; // 会話あたりデフォルト5問
+    allText += `### Conversation ID: ${convId}\n\n${text}\n\n`;
+    totalCards += 5;
   }
 
   if (!allText) {
@@ -173,6 +188,14 @@ export async function regenerateDailyQuiz(
   }
 
   const result = await generateDailyQuizCards(allText, Math.min(totalCards, 20));
+  const normalizedCards = result.cards.map((card) => ({
+    ...card,
+    conversationId: resolveConversationIdFromCard(
+      card,
+      convIds,
+      messageIdToConversationId
+    ),
+  }));
 
   const quizId = `${targetDate}_v${newVersion}`;
   const quiz: DailyQuiz = {
@@ -180,7 +203,7 @@ export async function regenerateDailyQuiz(
     targetDate,
     version: newVersion,
     isActive: true,
-    cards: result.cards,
+    cards: normalizedCards,
     idempotencyKey: `${userId}_${targetDate}_v${newVersion}`,
     generationModel: MODEL_NAME,
     promptTokens: result.promptTokens,
@@ -191,13 +214,13 @@ export async function regenerateDailyQuiz(
     ),
   };
 
-  // 旧active→false
   const batch = db.batch();
   const allActiveSnap = await db
     .collection(`users/${userId}/dailyQuizzes`)
     .where("targetDate", "==", targetDate)
     .where("isActive", "==", true)
     .get();
+
   for (const doc of allActiveSnap.docs) {
     batch.update(doc.ref, { isActive: false });
   }
@@ -220,8 +243,6 @@ export async function regenerateDailyQuiz(
   return { quiz, previousVersion: maxVersion, currentVersion: newVersion };
 }
 
-// ─── Active版切替 ───────────────────────────────────
-
 export async function switchActiveMaterialVersion(
   userId: string,
   conversationId: string,
@@ -230,7 +251,6 @@ export async function switchActiveMaterialVersion(
 ): Promise<void> {
   const basePath = `users/${userId}/conversations/${conversationId}/materials`;
 
-  // ターゲットバージョンの存在確認
   const targetId = `${messageId}_v${targetVersion}`;
   const targetDoc = await db.doc(`${basePath}/${targetId}`).get();
   if (!targetDoc.exists) {
@@ -239,20 +259,18 @@ export async function switchActiveMaterialVersion(
 
   const batch = db.batch();
 
-  // 現在のactive版をfalseに
   const activeSnap = await db
     .collection(basePath)
     .where("messageId", "==", messageId)
     .where("isActive", "==", true)
     .get();
+
   for (const doc of activeSnap.docs) {
     batch.update(doc.ref, { isActive: false });
   }
 
-  // ターゲットをtrueに
   batch.update(targetDoc.ref, { isActive: true });
 
-  // メッセージのactiveMaterialVersionを更新
   const msgRef = db.doc(
     `users/${userId}/conversations/${conversationId}/messages/${messageId}`
   );
@@ -270,17 +288,18 @@ export async function switchActiveDailyQuizVersion(
   const targetDoc = await db
     .doc(`users/${userId}/dailyQuizzes/${quizId}`)
     .get();
+
   if (!targetDoc.exists) {
     throw new Error(`Version ${targetVersion} not found`);
   }
 
   const batch = db.batch();
-
   const activeSnap = await db
     .collection(`users/${userId}/dailyQuizzes`)
     .where("targetDate", "==", targetDate)
     .where("isActive", "==", true)
     .get();
+
   for (const doc of activeSnap.docs) {
     batch.update(doc.ref, { isActive: false });
   }

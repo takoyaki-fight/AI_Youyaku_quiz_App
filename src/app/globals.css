@@ -211,6 +211,26 @@
     background: var(--md-sys-color-primary-container);
     color: var(--md-sys-color-on-primary-container);
   }
+
+  button:not(:disabled):not([data-slot="button"]) {
+    transition:
+      background-color 180ms ease,
+      color 180ms ease,
+      filter 180ms ease,
+      transform 180ms ease;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    button:not(:disabled):not([data-slot="button"]):hover {
+      transform: translateY(-1px);
+      filter: brightness(0.98);
+    }
+  }
+
+  button:not(:disabled):not([data-slot="button"]):active {
+    transform: translateY(0);
+    filter: brightness(0.95);
+  }
 }
 
 ::-webkit-scrollbar {

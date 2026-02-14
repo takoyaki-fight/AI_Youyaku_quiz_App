@@ -85,21 +85,31 @@ export function QuizCard({
             <p className="text-sm leading-relaxed text-[color:var(--md-sys-color-on-surface-variant)]">
               {answer}
             </p>
-            {sources.length > 0 && conversationId && (
-              <a
-                href={`/chat/${conversationId}`}
-                onClick={(e) => e.stopPropagation()}
+            {conversationId && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  const encodedConversationId = encodeURIComponent(conversationId);
+                  const firstSource = sources[0];
+                  const targetUrl = firstSource
+                    ? `/chat/${encodedConversationId}?highlight=${encodeURIComponent(firstSource)}`
+                    : `/chat/${encodedConversationId}`;
+
+                  window.open(targetUrl, "_blank", "noopener,noreferrer");
+                }}
                 className="mt-3 inline-flex items-center gap-1 text-xs text-primary transition-colors hover:underline"
               >
                 <ExternalLink className="h-3 w-3" />
-                元の会話を開く
-              </a>
+                {"\u5143\u306E\u4F1A\u8A71\u3092\u958B\u304F"}
+              </button>
             )}
           </div>
         ) : (
           <p className="flex items-center gap-1 text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
             <Eye className="h-3 w-3" />
-            タップで回答を表示
+            {"\u30BF\u30C3\u30D7\u3067\u56DE\u7B54\u3092\u8868\u793A"}
           </p>
         )}
       </CardContent>

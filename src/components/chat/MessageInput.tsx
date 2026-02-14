@@ -49,7 +49,7 @@ export function MessageInput({ onSend, disabled }: MessageInputProps) {
             value={value}
             onChange={handleInput}
             onKeyDown={handleKeyDown}
-            placeholder="質問や要点を入力してください"
+            placeholder="質問を入力してください"
             disabled={disabled}
             className="min-h-[52px] max-h-[200px] resize-none pr-4"
             rows={1}

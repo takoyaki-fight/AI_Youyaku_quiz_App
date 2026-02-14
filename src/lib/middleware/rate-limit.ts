@@ -14,6 +14,12 @@ interface RateLimitConfig {
 export const RATE_LIMITS = {
   /** チャット: 1分あたり10メッセージ */
   chat: { type: "chat", limit: 10, windowMs: 60 * 1000 } as RateLimitConfig,
+  /** Term follow-up in popup: 20 requests per minute */
+  termFollowup: {
+    type: "term_followup",
+    limit: 20,
+    windowMs: 60 * 1000,
+  } as RateLimitConfig,
   /** 素材再生成: 1日あたり10回 */
   materialRegenerate: {
     type: "regeneration",

@@ -6,7 +6,11 @@ import {
   getUserSettings,
 } from "@/lib/firestore/repository";
 import { generateDailyQuizCards } from "@/lib/vertex-ai/daily-quiz";
-import { getYesterdayRange, getYesterdayDateString } from "@/lib/utils/date";
+import {
+  getYesterdayRange,
+  getYesterdayDateString,
+  getTodayDateString,
+} from "@/lib/utils/date";
 import type { DailyQuiz } from "@/types/daily-quiz";
 import type { Message } from "@/types/message";
 import type { Conversation } from "@/types/conversation";
@@ -153,14 +157,19 @@ export async function generateDailyQuizForUser(
       )
       .join("\n\n---\n\n");
 
-    const fullText = `### 会話ID: ${alloc.conversationId}\n\n${conversationText}`;
+    const fullText = `### Conversation ID: ${alloc.conversationId}\n\n${conversationText}`;
 
     const result = await generateDailyQuizCards(
       fullText,
       alloc.allocatedQuestions
     );
 
-    allCards.push(...result.cards);
+    allCards.push(
+      ...result.cards.map((card) => ({
+        ...card,
+        conversationId: alloc.conversationId,
+      }))
+    );
     totalPromptTokens += result.promptTokens;
     totalCompletionTokens += result.completionTokens;
   }
@@ -199,4 +208,159 @@ export async function generateDailyQuizForUser(
   });
 
   return quiz;
+}
+
+export async function generateManualDailyQuizForUser(
+  userId: string,
+  conversationIds: string[],
+  targetDate = getTodayDateString()
+): Promise<{ quiz: DailyQuiz; previousVersion: number; currentVersion: number }> {
+  const normalizedIds = Array.from(
+    new Set(
+      conversationIds
+        .filter((id): id is string => typeof id === "string")
+        .map((id) => id.trim())
+        .filter((id) => id.length > 0)
+    )
+  );
+
+  if (normalizedIds.length === 0) {
+    throw new Error("No conversation IDs provided");
+  }
+
+  const settings = await getUserSettings(userId);
+
+  const selectedConversations: { id: string; msgCount: number }[] = [];
+  for (const conversationId of normalizedIds) {
+    const conversationDoc = await db
+      .doc(`users/${userId}/conversations/${conversationId}`)
+      .get();
+
+    if (!conversationDoc.exists) {
+      continue;
+    }
+
+    const conversation = conversationDoc.data() as Conversation;
+    if (conversation.messageCount <= 0) {
+      continue;
+    }
+
+    selectedConversations.push({
+      id: conversation.conversationId,
+      msgCount: conversation.messageCount,
+    });
+  }
+
+  if (selectedConversations.length === 0) {
+    throw new Error("No valid conversations with messages found");
+  }
+
+  const allocations = allocateQuestions(
+    selectedConversations,
+    settings.dailyQuizMaxTotal,
+    settings.dailyQuizMaxPerConversation
+  );
+
+  if (allocations.length === 0) {
+    throw new Error("Failed to allocate quiz cards");
+  }
+
+  const startTime = Date.now();
+  const allCards: DailyQuiz["cards"] = [];
+  let totalPromptTokens = 0;
+  let totalCompletionTokens = 0;
+
+  for (const alloc of allocations) {
+    const msgsSnap = await db
+      .collection(`users/${userId}/conversations/${alloc.conversationId}/messages`)
+      .orderBy("createdAt", "asc")
+      .limit(30)
+      .get();
+
+    const messages = msgsSnap.docs.map((d) => d.data() as Message);
+    if (messages.length === 0) {
+      continue;
+    }
+
+    const conversationText = messages
+      .map((m) => `[${m.role}] (messageId: ${m.messageId})\n${m.content}`)
+      .join("\n\n---\n\n");
+    const fullText = `### Conversation ID: ${alloc.conversationId}\n\n${conversationText}`;
+
+    const result = await generateDailyQuizCards(
+      fullText,
+      alloc.allocatedQuestions
+    );
+
+    allCards.push(
+      ...result.cards.map((card) => ({
+        ...card,
+        conversationId: alloc.conversationId,
+      }))
+    );
+    totalPromptTokens += result.promptTokens;
+    totalCompletionTokens += result.completionTokens;
+  }
+
+  if (allCards.length === 0) {
+    throw new Error("No quiz cards were generated");
+  }
+
+  const existingSnap = await db
+    .collection(`users/${userId}/dailyQuizzes`)
+    .where("targetDate", "==", targetDate)
+    .get();
+
+  const existingQuizzes = existingSnap.docs.map((doc) => doc.data() as DailyQuiz);
+  const previousVersion = existingQuizzes.reduce(
+    (max, quiz) => Math.max(max, quiz.version),
+    0
+  );
+  const currentVersion = previousVersion + 1;
+  const quizId = `${targetDate}_v${currentVersion}`;
+
+  const quiz: DailyQuiz = {
+    quizId,
+    targetDate,
+    version: currentVersion,
+    isActive: true,
+    cards: allCards,
+    idempotencyKey: `${userId}_${targetDate}_manual_${uuidv4()}`,
+    generationModel: MODEL_NAME,
+    promptTokens: totalPromptTokens,
+    completionTokens: totalCompletionTokens,
+    generatedAt: Timestamp.now(),
+    expireAt: Timestamp.fromDate(
+      new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    ),
+  };
+
+  const batch = db.batch();
+  for (const doc of existingSnap.docs) {
+    const existing = doc.data() as DailyQuiz;
+    if (existing.isActive) {
+      batch.update(doc.ref, { isActive: false });
+    }
+  }
+
+  const newRef = db.doc(`users/${userId}/dailyQuizzes/${quizId}`);
+  batch.set(newRef, quiz);
+  await batch.commit();
+
+  await saveGenerationLog(userId, {
+    logId: uuidv4(),
+    type: "daily_quiz",
+    model: MODEL_NAME,
+    promptTokens: totalPromptTokens,
+    completionTokens: totalCompletionTokens,
+    totalTokens: totalPromptTokens + totalCompletionTokens,
+    latencyMs: Date.now() - startTime,
+    success: true,
+  });
+
+  return {
+    quiz,
+    previousVersion,
+    currentVersion,
+  };
 }

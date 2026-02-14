@@ -36,16 +36,17 @@ function SectionSwitch({
     <button
       type="button"
       onClick={onToggle}
+      data-slot="button"
       aria-pressed={checked}
-      className={`relative h-7 w-12 rounded-full transition-colors ${
+      className={`inline-flex h-7 w-12 shrink-0 items-center overflow-hidden rounded-full p-0.5 transition-colors duration-200 hover:brightness-95 ${
         checked
           ? "bg-primary"
           : "bg-[color:color-mix(in_srgb,var(--md-sys-color-outline),transparent_35%)]"
       }`}
     >
       <span
-        className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-[var(--md-elevation-1)] transition-transform ${
-          checked ? "translate-x-[22px]" : "translate-x-[2px]"
+        className={`h-6 w-6 rounded-full bg-white shadow-[var(--md-elevation-1)] transition-transform duration-200 ${
+          checked ? "translate-x-5" : "translate-x-0"
         }`}
       />
     </button>
@@ -77,7 +78,7 @@ export function SettingsForm({ initialSettings }: SettingsFormProps) {
               <BrainCircuit className="h-4 w-4" />
             </div>
             <div>
-              <CardTitle className="text-sm">日次Q&A設定</CardTitle>
+              <CardTitle className="text-sm">Daily Quiz設定</CardTitle>
               <CardDescription className="text-xs">
                 復習カード生成の挙動を調整します
               </CardDescription>

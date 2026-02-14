@@ -175,7 +175,6 @@ export async function updateConversationTitle(
 ): Promise<void> {
   await db.doc(`users/${userId}/conversations/${conversationId}`).update({
     title,
-    updatedAt: FieldValue.serverTimestamp(),
   });
 }
 
@@ -279,26 +278,88 @@ export async function getActiveDailyQuiz(
   userId: string,
   targetDate: string
 ): Promise<DailyQuiz | null> {
-  const snap = await db
-    .collection(`users/${userId}/dailyQuizzes`)
-    .where("targetDate", "==", targetDate)
-    .where("isActive", "==", true)
-    .limit(1)
-    .get();
-  return snap.empty ? null : (snap.docs[0].data() as DailyQuiz);
+  const quizzesRef = db.collection(`users/${userId}/dailyQuizzes`);
+
+  try {
+    const snap = await quizzesRef
+      .where("targetDate", "==", targetDate)
+      .where("isActive", "==", true)
+      .limit(1)
+      .get();
+    return snap.empty ? null : (snap.docs[0].data() as DailyQuiz);
+  } catch (error) {
+    if (!isMissingIndexError(error)) {
+      throw error;
+    }
+
+    const fallbackSnap = await quizzesRef
+      .where("targetDate", "==", targetDate)
+      .get();
+    const activeQuizzes = fallbackSnap.docs
+      .map((d) => d.data() as DailyQuiz)
+      .filter((quiz) => quiz.isActive);
+
+    if (!activeQuizzes.length) {
+      return null;
+    }
+
+    activeQuizzes.sort((a, b) => b.version - a.version);
+    return activeQuizzes[0];
+  }
 }
 
 export async function listDailyQuizzes(
   userId: string,
   limit = 30
 ): Promise<DailyQuiz[]> {
-  const snap = await db
-    .collection(`users/${userId}/dailyQuizzes`)
-    .where("isActive", "==", true)
-    .orderBy("targetDate", "desc")
-    .limit(limit)
-    .get();
-  return snap.docs.map((d) => d.data() as DailyQuiz);
+  const quizzesRef = db.collection(`users/${userId}/dailyQuizzes`);
+
+  try {
+    const snap = await quizzesRef
+      .where("isActive", "==", true)
+      .orderBy("targetDate", "desc")
+      .limit(limit)
+      .get();
+    return snap.docs.map((d) => d.data() as DailyQuiz);
+  } catch (error) {
+    if (!isMissingIndexError(error)) {
+      throw error;
+    }
+
+    const fallbackLimit = Math.max(limit * 3, 100);
+    const fallbackSnap = await quizzesRef
+      .orderBy("targetDate", "desc")
+      .limit(fallbackLimit)
+      .get();
+
+    return fallbackSnap.docs
+      .map((d) => d.data() as DailyQuiz)
+      .filter((quiz) => quiz.isActive)
+      .slice(0, limit);
+  }
+}
+
+function isMissingIndexError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const maybeError = error as { code?: unknown; message?: unknown };
+  const code = maybeError.code;
+
+  if (
+    code === 9 ||
+    code === "9" ||
+    code === "failed-precondition" ||
+    code === "FAILED_PRECONDITION"
+  ) {
+    return true;
+  }
+
+  return (
+    typeof maybeError.message === "string" &&
+    maybeError.message.includes("requires an index")
+  );
 }
 
 // ─── Generation Logs ────────────────────────────────

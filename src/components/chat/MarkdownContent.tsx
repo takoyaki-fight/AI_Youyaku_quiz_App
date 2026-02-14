@@ -1,5 +1,7 @@
 "use client";
 
+import { isValidElement, useState } from "react";
+import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -13,6 +15,8 @@ interface MarkdownContentProps {
   isUser?: boolean;
   mentions?: MentionInfo[];
   terms?: TermInfo[];
+  termFollowupTurns?: Record<string, FollowupTurn[]>;
+  onAppendTermFollowupTurn?: (termKey: string, turn: FollowupTurn) => void;
 }
 
 interface TermInfo {
@@ -30,6 +34,11 @@ interface MentionInfo {
   endOffset: number;
 }
 
+interface FollowupTurn {
+  question: string;
+  answer: string;
+}
+
 const TERM_LINK_PREFIX = "#term:";
 
 type MdNode = {
@@ -42,6 +51,135 @@ type MdNode = {
     end?: { offset?: number };
   };
 };
+
+function normalizeTermId(value: unknown): string {
+  return typeof value === "string" ? value.trim() : String(value ?? "").trim();
+}
+
+function normalizeSurface(value: string): string {
+  return value
+    .trim()
+    .replace(/^[「『（(【\[]+/, "")
+    .replace(/[」』）)】\]]+$/, "")
+    .trim();
+}
+
+function extractTextFromNode(node: ReactNode): string {
+  if (typeof node === "string" || typeof node === "number") {
+    return String(node);
+  }
+  if (Array.isArray(node)) {
+    return node.map((child) => extractTextFromNode(child)).join("");
+  }
+  if (isValidElement<{ children?: ReactNode }>(node)) {
+    return extractTextFromNode(node.props.children);
+  }
+  return "";
+}
+
+function splitTextNodeByFallbackStrong(node: MdNode): MdNode[] {
+  const value = node.value;
+  if (typeof value !== "string" || !value.includes("**")) {
+    return [node];
+  }
+
+  const pieces: MdNode[] = [];
+  let cursor = 0;
+
+  while (cursor < value.length) {
+    const open = value.indexOf("**", cursor);
+    if (open === -1) {
+      break;
+    }
+
+    if (open > cursor) {
+      pieces.push({
+        type: "text",
+        value: value.slice(cursor, open),
+      });
+    }
+
+    const isEscaped = open > 0 && value[open - 1] === "\\";
+    if (isEscaped) {
+      pieces.push({ type: "text", value: "**" });
+      cursor = open + 2;
+      continue;
+    }
+
+    const close = value.indexOf("**", open + 2);
+    if (close === -1) {
+      pieces.push({ type: "text", value: value.slice(open) });
+      cursor = value.length;
+      break;
+    }
+
+    const inner = value.slice(open + 2, close);
+    const hasInnerText = inner.trim().length > 0;
+    const hasBoundaryWhitespace =
+      /^[\s\u3000]/.test(inner) || /[\s\u3000]$/.test(inner);
+
+    if (!hasInnerText || hasBoundaryWhitespace) {
+      pieces.push({ type: "text", value: value.slice(open, close + 2) });
+      cursor = close + 2;
+      continue;
+    }
+
+    pieces.push({
+      type: "strong",
+      children: [{ type: "text", value: inner }],
+    });
+    cursor = close + 2;
+  }
+
+  if (cursor < value.length) {
+    pieces.push({
+      type: "text",
+      value: value.slice(cursor),
+    });
+  }
+
+  return pieces.length ? pieces : [node];
+}
+
+function remarkFallbackStrong() {
+  const blockedTypes = new Set([
+    "link",
+    "linkReference",
+    "inlineCode",
+    "code",
+    "math",
+    "inlineMath",
+    "html",
+    "strong",
+  ]);
+
+  return function transformer(tree: MdNode) {
+    const walk = (node: MdNode, blocked: boolean) => {
+      if (!Array.isArray(node.children)) {
+        return;
+      }
+
+      const nowBlocked = blocked || blockedTypes.has(node.type || "");
+      const nextChildren: MdNode[] = [];
+
+      for (const child of node.children) {
+        if (!nowBlocked && child.type === "text") {
+          nextChildren.push(...splitTextNodeByFallbackStrong(child));
+        } else {
+          nextChildren.push(child);
+        }
+      }
+
+      node.children = nextChildren;
+
+      for (const child of node.children) {
+        walk(child, nowBlocked);
+      }
+    };
+
+    walk(tree, false);
+  };
+}
 
 function normalizeMentions(mentions: MentionInfo[]): MentionInfo[] {
   const sorted = [...mentions]
@@ -180,7 +318,12 @@ export function MarkdownContent({
   isUser = false,
   mentions = [],
   terms = [],
+  termFollowupTurns = {},
+  onAppendTermFollowupTurn,
 }: MarkdownContentProps) {
+  const [openPopoverKey, setOpenPopoverKey] = useState<string | null>(null);
+  const occurrenceByTermKey = new Map<string, number>();
+
   return (
     <div
       className={cn(
@@ -189,6 +332,7 @@ export function MarkdownContent({
         "[&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5",
         "[&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5",
         "[&_li]:my-1",
+        "[&_strong]:font-bold",
         "[&_h1]:text-lg [&_h1]:font-semibold [&_h1]:mt-3 [&_h1]:mb-2",
         "[&_h2]:text-base [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2",
         "[&_h3]:text-sm [&_h3]:font-semibold [&_h3]:mt-3 [&_h3]:mb-1.5",
@@ -210,16 +354,107 @@ export function MarkdownContent({
           remarkGfm,
           remarkMath,
           remarkBreaks,
+          remarkFallbackStrong,
           createRemarkTermMentions(mentions),
         ]}
         rehypePlugins={[rehypeKatex]}
         components={{
           a({ href, children, ...props }) {
+            const linkText = extractTextFromNode(children).trim();
+            const normalizedLinkText = normalizeSurface(linkText);
+            const matchedBySurface = linkText
+              ? terms.find((t) => normalizeSurface(t.surface) === normalizedLinkText)
+              : undefined;
+
             if (href?.startsWith(TERM_LINK_PREFIX)) {
-              const termId = decodeURIComponent(href.slice(TERM_LINK_PREFIX.length));
-              const term = terms.find((t) => t.termId === termId);
+              const rawTermId = decodeURIComponent(
+                href.slice(TERM_LINK_PREFIX.length)
+              );
+              const normalizedTermId = normalizeTermId(rawTermId);
+
+              const term =
+                terms.find(
+                  (t) => normalizeTermId(t.termId) === normalizedTermId
+                ) ?? matchedBySurface;
+
+              const termForPopover =
+                term ??
+                (linkText
+                  ? {
+                      termId: normalizedTermId || `surface:${linkText}`,
+                      surface: linkText,
+                      reading: "",
+                      definition:
+                        "この用語の詳細データが見つかりませんでした。下の入力欄で補足質問できます。",
+                      category: "concept",
+                    }
+                  : undefined);
+
+              const termKey =
+                normalizeTermId(termForPopover?.termId) ||
+                normalizedTermId ||
+                (linkText ? `surface:${linkText}` : "unknown");
+              const occurrence = occurrenceByTermKey.get(termKey) ?? 0;
+              occurrenceByTermKey.set(termKey, occurrence + 1);
+              const mentionKey = `${termKey}:${occurrence}`;
               return (
-                <TermPopover term={term}>
+                <TermPopover
+                  term={termForPopover}
+                  sharedTurns={termFollowupTurns[termKey] ?? []}
+                  onAppendSharedTurn={(turn) =>
+                    onAppendTermFollowupTurn?.(termKey, turn)
+                  }
+                  open={openPopoverKey === mentionKey}
+                  onOpenChange={(nextOpen) =>
+                    setOpenPopoverKey((current) => {
+                      if (nextOpen) return mentionKey;
+                      return current === mentionKey ? null : current;
+                    })
+                  }
+                >
+                  <span
+                    className={cn(
+                      "underline decoration-dotted cursor-pointer hover:opacity-80",
+                      isUser
+                        ? "text-[color:var(--md-sys-color-on-primary-container)]"
+                        : "text-primary"
+                    )}
+                  >
+                    {children}
+                  </span>
+                </TermPopover>
+              );
+            }
+
+            const canFallbackToTermPopover =
+              matchedBySurface &&
+              (!href ||
+                href === "#" ||
+                href.startsWith("#") ||
+                href === linkText);
+
+            if (canFallbackToTermPopover) {
+              const termForPopover = matchedBySurface;
+              const termKey = normalizeTermId(termForPopover.termId) || `surface:${termForPopover.surface}`;
+              const occurrence = occurrenceByTermKey.get(termKey) ?? 0;
+              occurrenceByTermKey.set(termKey, occurrence + 1);
+              const mentionKey = `${termKey}:${occurrence}`;
+
+              return (
+                <TermPopover
+                  term={termForPopover}
+                  sharedTurns={termFollowupTurns[termKey] ?? []}
+                  onAppendSharedTurn={(turn) =>
+                    onAppendTermFollowupTurn?.(termKey, turn)
+                  }
+                  open={openPopoverKey === mentionKey}
+                  onOpenChange={(nextOpen) =>
+                    setOpenPopoverKey((current) => {
+                      if (nextOpen) return mentionKey;
+                      return current === mentionKey ? null : current;
+                    })
+                  }
+                >
                   <span
                     className={cn(
                       "underline decoration-dotted cursor-pointer hover:opacity-80",
