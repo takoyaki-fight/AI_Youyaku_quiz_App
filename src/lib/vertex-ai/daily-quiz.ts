@@ -9,7 +9,9 @@ import { v4 as uuidv4 } from "uuid";
 interface RawCard {
   tag: string;
   question: string;
+  choices: string[];
   answer: string;
+  explanation: string;
   sourceMessageIds: string[];
   conversationId: string;
 }
@@ -97,18 +99,46 @@ function validateCards(raw: RawCard[]): QuizCard[] {
   const validTags = new Set(["What", "Why", "How", "When", "Example"]);
 
   return raw
-    .filter(
-      (c) =>
-        validTags.has(c.tag) &&
-        c.question?.length > 0 &&
-        c.answer?.length > 0
-    )
-    .map((c) => ({
-      cardId: uuidv4(),
-      tag: c.tag as QuizCard["tag"],
-      question: c.question,
-      answer: c.answer,
-      sources: c.sourceMessageIds || [],
-      conversationId: c.conversationId || "",
-    }));
+    .map((card) => {
+      const question =
+        typeof card.question === "string" ? card.question.trim() : "";
+      const explanation =
+        typeof card.explanation === "string" ? card.explanation.trim() : "";
+      const answer = typeof card.answer === "string" ? card.answer.trim() : "";
+      const choices = Array.isArray(card.choices)
+        ? card.choices
+            .map((choice) => (typeof choice === "string" ? choice.trim() : ""))
+            .filter((choice) => choice.length > 0)
+        : [];
+
+      if (!validTags.has(card.tag)) return null;
+      if (question.length === 0 || explanation.length === 0 || answer.length === 0) {
+        return null;
+      }
+      if (choices.length !== 4) return null;
+      if (new Set(choices).size !== 4) return null;
+
+      const correctIndex = choices.findIndex((choice) => choice === answer);
+      if (correctIndex < 0) return null;
+
+      const sources = Array.isArray(card.sourceMessageIds)
+        ? card.sourceMessageIds.filter(
+            (id): id is string => typeof id === "string" && id.length > 0
+          )
+        : [];
+
+      return {
+        cardId: uuidv4(),
+        tag: card.tag as QuizCard["tag"],
+        question,
+        choices,
+        correctIndex,
+        answer,
+        explanation,
+        sources,
+        conversationId:
+          typeof card.conversationId === "string" ? card.conversationId : "",
+      } satisfies QuizCard;
+    })
+    .filter((card): card is QuizCard => card !== null);
 }

@@ -4,7 +4,10 @@ export interface QuizCard {
   cardId: string;
   tag: "What" | "Why" | "How" | "When" | "Example";
   question: string;
+  choices: string[];
+  correctIndex: number;
   answer: string;
+  explanation: string;
   sources: string[];
   conversationId: string;
 }

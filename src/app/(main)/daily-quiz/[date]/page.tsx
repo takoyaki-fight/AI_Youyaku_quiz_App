@@ -2,19 +2,22 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { v4 as uuidv4 } from "uuid";
+import { ArrowLeft, Loader2, Play, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { QuizCardList } from "@/components/quiz/QuizCardList";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiGet, apiPost } from "@/lib/api-client";
-import { toast } from "sonner";
-import { v4 as uuidv4 } from "uuid";
-import { ArrowLeft, RefreshCw, Loader2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 
 interface CardItem {
   cardId: string;
   tag: string;
   question: string;
+  choices: string[];
+  correctIndex: number;
   answer: string;
+  explanation: string;
   sources: string[];
   conversationId: string;
 }
@@ -50,10 +53,10 @@ export default function DailyQuizDatePage() {
     setRegenerating(true);
     try {
       await apiPost(`/api/v1/daily-quizzes/${date}/regenerate`, {}, uuidv4());
-      toast.success("Q&Aを再生成しました");
+      toast.success("\u30af\u30a4\u30ba\u3092\u518d\u751f\u6210\u3057\u307e\u3057\u305f");
       fetchQuiz();
     } catch {
-      toast.error("再生成に失敗しました");
+      toast.error("\u518d\u751f\u6210\u306b\u5931\u6557\u3057\u307e\u3057\u305f");
     } finally {
       setRegenerating(false);
     }
@@ -68,48 +71,60 @@ export default function DailyQuizDatePage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      <div className="mb-6 flex items-center justify-between gap-2">
+    <div className="mx-auto max-w-4xl p-6">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Button
             variant="ghost"
             size="icon-sm"
             onClick={() => router.push("/daily-quiz")}
-            aria-label="一覧へ戻る"
+            aria-label="\u4e00\u89a7\u306b\u623b\u308b"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
             <h1 className="text-xl font-semibold text-foreground">{date}</h1>
-            <div className="mt-0.5 flex items-center gap-2">
-              {quiz && (
+            {quiz && (
+              <div className="mt-1 flex items-center gap-2">
                 <Badge variant="secondary" className="text-[10px]">
                   v{quiz.version}
                 </Badge>
-              )}
-              {quiz && (
                 <span className="text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
-                  {quiz.cards.length}問
+                  {quiz.cards.length}
+                  {"\u554f"}
                 </span>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRegenerate}
-          disabled={regenerating}
-          className="gap-1.5"
-        >
-          {regenerating ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <RefreshCw className="h-3.5 w-3.5" />
-          )}
-          {regenerating ? "再生成中..." : "再生成"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            onClick={() => router.push(`/daily-quiz/${date}/study`)}
+            disabled={!quiz || quiz.cards.length === 0}
+            className="gap-1.5"
+          >
+            <Play className="h-3.5 w-3.5" />
+            {"\u30af\u30a4\u30ba\u30b9\u30bf\u30fc\u30c8"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRegenerate}
+            disabled={regenerating}
+            className="gap-1.5"
+          >
+            {regenerating ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
+            {regenerating
+              ? "\u518d\u751f\u6210\u4e2d..."
+              : "\u518d\u751f\u6210"}
+          </Button>
+        </div>
       </div>
 
       {quiz ? (
@@ -119,7 +134,9 @@ export default function DailyQuizDatePage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-[var(--md-shape-md)] bg-[color:var(--md-sys-color-surface-container)]">
             <RefreshCw className="h-8 w-8 text-[color:var(--md-sys-color-on-surface-variant)]" />
           </div>
-          <p className="text-sm text-foreground">この日のQ&Aはありません</p>
+          <p className="text-sm text-foreground">
+            {"\u3053\u306e\u65e5\u306e\u30af\u30a4\u30ba\u306f\u3042\u308a\u307e\u305b\u3093"}
+          </p>
         </div>
       )}
     </div>

@@ -4,39 +4,40 @@ export function buildDailyQuizPrompt(
   conversationsWithMessages: string,
   allocatedCount: number
 ): string {
-  return `あなたは学習確認のための一問一答を生成するAIです。
+  return `You are an assistant that creates a daily multiple-choice quiz from chat logs.
 
-## 昨日の会話内容
+## Conversation Data
 ${conversationsWithMessages}
 
-## 生成指示
+## Task
+Generate exactly ${allocatedCount} quiz cards in JSON format.
+Each card must be a 4-choice question with one correct answer and a short explanation.
 
-以下のJSON形式で一問一答カードを${allocatedCount}問生成してください。
-
+## Output Format
+Return JSON only:
 {
   "cards": [
     {
       "tag": "What | Why | How | When | Example",
-      "question": "問題文（日本語）",
-      "answer": "回答（日本語、2〜5文）",
+      "question": "Question text",
+      "choices": ["choice A", "choice B", "choice C", "choice D"],
+      "answer": "one of the 4 choices exactly",
+      "explanation": "Why this answer is correct",
       "sourceMessageIds": ["msg_xxx"],
       "conversationId": "conv_xxx"
     }
   ]
 }
 
-## ルール
-1. タグの分類:
-   - What: 定義・概念の確認（「〜とは何ですか？」）
-   - Why: 理由・目的の確認（「なぜ〜ですか？」）
-   - How: 手順・方法の確認（「どのように〜しますか？」）
-   - When: 条件・タイミングの確認（「どのような場合に〜しますか？」）
-   - Example: 具体例の確認（「〜の具体例を挙げてください」）
-2. 各タグが偏らないよう、バランスよく生成すること。
-3. sourceMessageIdsには、その問題の根拠となるassistantメッセージのIDを含める。
-4. この会話から生成する問題数: ${allocatedCount}問
-5. 問題の難易度は会話内容に基づき、初学者でも取り組めるレベルにする。
-6. 出力はJSONのみ。`;
+## Rules
+1. Make all content in Japanese.
+2. choices must contain exactly 4 distinct options.
+3. answer must exactly match one item in choices.
+4. explanation should be concise and useful (1-3 sentences).
+5. sourceMessageIds must include assistant message IDs from the provided logs.
+6. conversationId must match the source conversation.
+7. Generate exactly ${allocatedCount} cards.
+8. Return JSON only.`;
 }
 
 export const DAILY_QUIZ_RESPONSE_SCHEMA = {
@@ -52,7 +53,12 @@ export const DAILY_QUIZ_RESPONSE_SCHEMA = {
             enum: ["What", "Why", "How", "When", "Example"],
           },
           question: { type: SchemaType.STRING },
+          choices: {
+            type: SchemaType.ARRAY,
+            items: { type: SchemaType.STRING },
+          },
           answer: { type: SchemaType.STRING },
+          explanation: { type: SchemaType.STRING },
           sourceMessageIds: {
             type: SchemaType.ARRAY,
             items: { type: SchemaType.STRING },
@@ -62,7 +68,9 @@ export const DAILY_QUIZ_RESPONSE_SCHEMA = {
         required: [
           "tag",
           "question",
+          "choices",
           "answer",
+          "explanation",
           "sourceMessageIds",
           "conversationId",
         ],
