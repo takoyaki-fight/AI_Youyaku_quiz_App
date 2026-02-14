@@ -1,48 +1,53 @@
 "use client";
 
-import { Sparkles, MessageSquare, BrainCircuit, BookOpen } from "lucide-react";
+import { BrandLogo } from "@/components/common/BrandLogo";
+import { MessageSquare, BrainCircuit, BookOpen } from "lucide-react";
+
+const quickGuides = [
+  {
+    icon: MessageSquare,
+    title: "対話で思考する",
+    desc: "問いと応答を繰り返しながら、理解の輪郭を段階的に明確にします。",
+  },
+  {
+    icon: BrainCircuit,
+    title: "Daily Quiz を作る",
+    desc: "会話内容を Daily Quiz に変換し、能動的な想起を促します。",
+  },
+  {
+    icon: BookOpen,
+    title: "重要語を確認する",
+    desc: "重要語の定義と文脈を紐づけ、概念理解を促します。",
+  },
+];
 
 export default function ChatListPage() {
   return (
-    <div className="flex items-center justify-center h-full">
-      <div className="text-center max-w-md px-6">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center mx-auto mb-5 shadow-lg shadow-blue-200/50">
-          <Sparkles className="w-8 h-8 text-white" />
+    <div className="flex h-full items-center justify-center p-6">
+      <div className="w-full max-w-2xl rounded-[var(--md-shape-xl)] border border-border/80 bg-card px-6 py-8 shadow-[var(--md-elevation-2)] md:px-8">
+        <div className="text-center">
+          <BrandLogo size="lg" showTagline className="mx-auto mb-4" />
+          <p className="mx-auto mt-2 max-w-md text-sm text-[color:var(--md-sys-color-on-surface-variant)]">
+            新しい対話を始めて、問いによって理解を深めていきましょう。
+          </p>
         </div>
-        <h2 className="text-xl font-bold text-gray-800 mb-2">AI学習アシスタント</h2>
-        <p className="text-sm text-gray-400 mb-8">
-          会話を選択、または新規作成して学習を始めましょう
-        </p>
-        <div className="grid gap-3 text-left">
-          {[
-            {
-              icon: MessageSquare,
-              title: "自然な対話で学ぶ",
-              desc: "AIとの会話を通じて理解を深められます",
-            },
-            {
-              icon: BrainCircuit,
-              title: "復習問題の自動生成",
-              desc: "会話内容からQ&Aが毎日自動作成されます",
-            },
-            {
-              icon: BookOpen,
-              title: "用語の自動整理",
-              desc: "重要な用語が辞書として蓄積されます",
-            },
-          ].map((item) => {
+
+        <div className="mt-7 grid gap-3 text-left">
+          {quickGuides.map((item) => {
             const Icon = item.icon;
             return (
               <div
                 key={item.title}
-                className="flex items-start gap-3 p-3 rounded-xl bg-white/60 border border-gray-100"
+                className="flex items-start gap-3 rounded-[var(--md-shape-md)] border border-border/70 bg-[color:var(--md-sys-color-surface-container-low)] p-4"
               >
-                <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-                  <Icon className="w-4 h-4 text-blue-600" />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--md-shape-sm)] bg-[color:var(--md-sys-color-secondary-container)] text-[color:var(--md-sys-color-on-secondary-container)]">
+                  <Icon className="h-[18px] w-[18px]" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-700">{item.title}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{item.desc}</p>
+                  <p className="text-sm font-medium text-foreground">{item.title}</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-[color:var(--md-sys-color-on-surface-variant)]">
+                    {item.desc}
+                  </p>
                 </div>
               </div>
             );

@@ -17,14 +17,16 @@ export function SummaryAccordion({ summary }: SummaryAccordionProps) {
   return (
     <Accordion type="single" collapsible className="mt-2">
       <AccordionItem value="summary" className="border-none">
-        <AccordionTrigger className="py-1 text-xs text-gray-500 hover:no-underline">
-          要約 ({summary.length}項目)
+        <AccordionTrigger className="py-1 text-xs text-[color:var(--md-sys-color-on-surface-variant)] hover:no-underline">
+          要点 ({summary.length}件)
         </AccordionTrigger>
         <AccordionContent>
-          <ul className="space-y-1 text-xs text-gray-600">
+          <ul className="space-y-1 text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
             {summary.map((item, i) => (
               <li key={i} className="flex gap-2">
-                <span className="text-gray-400 shrink-0">•</span>
+                <span className="shrink-0 text-[color:var(--md-sys-color-outline)]">
+                  ・
+                </span>
                 <span>{item}</span>
               </li>
             ))}

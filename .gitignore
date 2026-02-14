@@ -41,6 +41,7 @@ tmp-firebase-admin-key.json
 
 # local agent/tooling
 .claude/
+.agents/
 
 # test artifacts
 test-results/

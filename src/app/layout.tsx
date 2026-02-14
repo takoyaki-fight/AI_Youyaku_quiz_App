@@ -16,8 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI学習アシスタント",
-  description: "会話から学習素材を自動生成するAIアシスタント",
+  title: "Maieutics",
+  description:
+    "ソクラテスの産婆術に着想を得た、対話ファーストの学習アシスタント。",
 };
 
 export default function RootLayout({
@@ -27,9 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AuthProvider>
           {children}
           <Toaster />

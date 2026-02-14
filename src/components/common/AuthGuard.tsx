@@ -25,25 +25,27 @@ export function AuthGuard({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
       </div>
     );
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-        <div className="max-w-md text-center space-y-3">
-          <p className="text-sm text-gray-600">ログインページへ移動しています...</p>
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="max-w-md space-y-3 rounded-[var(--md-shape-lg)] border border-border/70 bg-card p-5 text-center shadow-[var(--md-elevation-1)]">
+          <p className="text-sm text-[color:var(--md-sys-color-on-surface-variant)]">
+            ログインページへ移動しています...
+          </p>
           <Link
             href="/login"
-            className="inline-block px-4 py-2 rounded border text-sm hover:bg-gray-100"
+            className="inline-block rounded-full border border-border/80 px-4 py-2 text-sm transition-colors hover:bg-[color:var(--md-sys-color-surface-container)]"
           >
             ログインページを開く
           </Link>
           {authError ? (
-            <p className="text-xs text-red-600 break-all">{authError}</p>
+            <p className="break-all text-xs text-destructive">{authError}</p>
           ) : null}
         </div>
       </div>

@@ -33,20 +33,23 @@ export function TermPopover({ term, children }: TermPopoverProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
-      <PopoverContent className="w-72 p-3" side="top">
+      <PopoverContent
+        className="w-72 rounded-[var(--md-shape-lg)] border border-border/80 bg-popover p-3 shadow-[var(--md-elevation-2)]"
+        side="top"
+      >
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <span className="font-medium text-sm">{term.surface}</span>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+            <span className="text-sm font-medium">{term.surface}</span>
+            <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
               {categoryLabels[term.category] || term.category}
             </Badge>
           </div>
           {term.reading && (
-            <p className="text-xs text-gray-400">{term.reading}</p>
+            <p className="text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
+              {term.reading}
+            </p>
           )}
-          <p className="text-xs text-gray-700 leading-relaxed">
-            {term.definition}
-          </p>
+          <p className="text-xs leading-relaxed text-foreground">{term.definition}</p>
         </div>
       </PopoverContent>
     </Popover>

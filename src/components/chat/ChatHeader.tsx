@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { BookOpen } from "lucide-react";
+import { BookOpen, MessagesSquare } from "lucide-react";
 
 export function ChatHeader() {
   const params = useParams();
@@ -11,14 +11,17 @@ export function ChatHeader() {
   if (!conversationId) return null;
 
   return (
-    <div className="flex items-center justify-between px-4 py-2.5 border-b bg-white/60 backdrop-blur-sm">
-      <div />
+    <div className="flex items-center justify-between border-b border-border/70 bg-[color:var(--md-sys-color-surface-container-low)] px-4 py-3">
+      <div className="flex items-center gap-2 text-sm text-[color:var(--md-sys-color-on-surface-variant)]">
+        <MessagesSquare className="h-4 w-4" />
+        <span className="font-medium">会話セッション</span>
+      </div>
       <Link
         href={`/chat/${conversationId}/terms`}
-        className="flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 px-3 py-1.5 rounded-full hover:bg-blue-50 transition-colors"
+        className="inline-flex items-center gap-1.5 rounded-full bg-[color:var(--md-sys-color-secondary-container)] px-3 py-1.5 text-xs font-medium text-[color:var(--md-sys-color-on-secondary-container)] transition-colors hover:brightness-95"
       >
-        <BookOpen className="w-3.5 h-3.5" />
-        用語辞書
+        <BookOpen className="h-3.5 w-3.5" />
+        用語集
       </Link>
     </div>
   );

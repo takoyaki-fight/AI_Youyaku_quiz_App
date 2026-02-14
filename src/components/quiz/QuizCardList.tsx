@@ -18,7 +18,7 @@ interface QuizCardListProps {
 export function QuizCardList({ cards }: QuizCardListProps) {
   if (cards.length === 0) {
     return (
-      <div className="text-center text-gray-400 py-12 text-sm">
+      <div className="rounded-[var(--md-shape-lg)] border border-border/70 bg-card py-12 text-center text-sm text-[color:var(--md-sys-color-on-surface-variant)] shadow-[var(--md-elevation-1)]">
         カードがありません
       </div>
     );

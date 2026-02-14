@@ -42,13 +42,21 @@ export function MessageList({ messages, loading }: MessageListProps) {
   }, [messages]);
 
   return (
-    <ScrollArea className="min-h-0 flex-1 p-4">
-      <div className="max-w-4xl mx-auto">
+    <ScrollArea className="min-h-0 flex-1 px-4 py-4 md:px-6">
+      <div className="mx-auto w-full max-w-4xl">
         {messages.length === 0 && !loading && (
-          <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-            メッセージを送信して会話を始めましょう
+          <div className="flex min-h-[42vh] items-center justify-center px-4">
+            <div className="rounded-[var(--md-shape-lg)] border border-border/70 bg-card px-6 py-5 text-center shadow-[var(--md-elevation-1)]">
+              <p className="text-sm font-medium text-foreground">
+                学習したい内容を入力してください
+              </p>
+              <p className="mt-1 text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
+                AIが要点整理と理解チェックを返します
+              </p>
+            </div>
           </div>
         )}
+
         {messages.map((msg) => (
           <MessageBubble
             key={msg.messageId}
@@ -57,16 +65,17 @@ export function MessageList({ messages, loading }: MessageListProps) {
             material={msg.material}
           />
         ))}
+
         {loading && (
-          <div className="flex gap-2.5 justify-start mb-5">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 shadow-sm">
-              <Bot className="w-4 h-4 text-white" />
+          <div className="mb-5 flex justify-start gap-2.5">
+            <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[color:var(--md-sys-color-primary-container)] text-[color:var(--md-sys-color-on-primary-container)]">
+              <Bot className="h-4 w-4" />
             </div>
-            <div className="bg-white border border-gray-100 rounded-2xl px-4 py-3 shadow-sm">
-              <div className="flex gap-1.5 items-center">
-                <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" />
-                <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:0.15s]" />
-                <span className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:0.3s]" />
+            <div className="rounded-[var(--md-shape-lg)] border border-border/70 bg-card px-4 py-3 shadow-[var(--md-elevation-1)]">
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 animate-bounce rounded-full bg-[color:var(--md-sys-color-primary)]" />
+                <span className="h-2 w-2 animate-bounce rounded-full bg-[color:var(--md-sys-color-primary)] [animation-delay:0.12s]" />
+                <span className="h-2 w-2 animate-bounce rounded-full bg-[color:var(--md-sys-color-primary)] [animation-delay:0.24s]" />
               </div>
             </div>
           </div>

@@ -24,11 +24,9 @@ export default function TermsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    apiGet<{ terms: TermItem[] }>(
-      `/api/v1/conversations/${conversationId}/terms`
-    )
+    apiGet<{ terms: TermItem[] }>(`/api/v1/conversations/${conversationId}/terms`)
       .then((data) => setTerms(data.terms))
-      .catch(() => toast.error("用語の取得に失敗しました"))
+      .catch(() => toast.error("用語一覧の取得に失敗しました"))
       .finally(() => setLoading(false));
   }, [conversationId]);
 
@@ -38,25 +36,25 @@ export default function TermsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+      <div className="flex h-full items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 p-4 border-b bg-white">
+    <div className="flex h-full flex-col">
+      <div className="flex items-center gap-3 border-b border-border/70 bg-[color:var(--md-sys-color-surface-container-low)] px-4 py-3">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => router.push(`/chat/${conversationId}`)}
         >
-          ← チャットに戻る
+          チャットに戻る
         </Button>
-        <h1 className="font-medium">用語辞書</h1>
+        <h1 className="text-sm font-semibold text-foreground">用語集</h1>
       </div>
-      <div className="flex-1 overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-hidden">
         <TermList terms={terms} onJumpToMessage={handleJumpToMessage} />
       </div>
     </div>

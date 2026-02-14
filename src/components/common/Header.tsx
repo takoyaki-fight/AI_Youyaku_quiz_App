@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/firebase/auth-context";
 import { Button } from "@/components/ui/button";
-import { usePathname } from "next/navigation";
+import { BrandLogo } from "@/components/common/BrandLogo";
 import {
   MessageSquare,
   BrainCircuit,
@@ -12,7 +13,6 @@ import {
   LogOut,
   Menu,
   X,
-  Sparkles,
 } from "lucide-react";
 
 export function Header() {
@@ -23,24 +23,26 @@ export function Header() {
   if (!user) return null;
 
   const navItems = [
-    { href: "/chat", label: "チャット", icon: MessageSquare },
-    { href: "/daily-quiz", label: "日次Q&A", icon: BrainCircuit },
-    { href: "/settings", label: "設定", icon: Settings },
+    { href: "/chat", label: "Chat", icon: MessageSquare },
+    { href: "/daily-quiz", label: "Daily Quiz", icon: BrainCircuit },
+    { href: "/settings", label: "Settings", icon: Settings },
   ];
 
+  const displayName = user.displayName || "User";
+
   return (
-    <header className="border-b bg-white/80 backdrop-blur-md sticky top-0 z-50">
-      <div className="flex items-center justify-between h-14 px-4 max-w-7xl mx-auto">
-        <div className="flex items-center gap-6">
-          <Link href="/chat" className="flex items-center gap-2 font-bold text-lg group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-sm group-hover:shadow-md transition-shadow">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
-            <span className="hidden sm:inline bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
-              AI学習アシスタント
-            </span>
+    <header className="sticky top-0 z-50 border-b border-border/70 bg-[color:var(--md-sys-color-surface-container-low)]/90 backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <Link href="/chat" className="group flex items-center">
+            <BrandLogo
+              size="sm"
+              hideWordmarkOnMobile
+              className="transition-transform duration-200 group-hover:scale-[1.03]"
+            />
           </Link>
-          <nav className="hidden md:flex items-center gap-1">
+
+          <nav className="hidden items-center gap-1 md:flex">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname.startsWith(item.href);
@@ -48,53 +50,58 @@ export function Header() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-all ${
+                  className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-sm transition-colors ${
                     isActive
-                      ? "bg-gray-900 text-white font-medium shadow-sm"
-                      : "text-gray-500 hover:text-gray-900 hover:bg-gray-100"
+                      ? "bg-[color:var(--md-sys-color-secondary-container)] text-[color:var(--md-sys-color-on-secondary-container)]"
+                      : "text-[color:var(--md-sys-color-on-surface-variant)] hover:bg-[color:var(--md-sys-color-surface-container)] hover:text-foreground"
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
-                  {item.label}
+                  <Icon className="h-4 w-4" />
+                  <span>{item.label}</span>
                 </Link>
               );
             })}
           </nav>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="hidden sm:flex items-center gap-2">
-            <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-gray-50">
-              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-xs font-medium shadow-sm">
-                {user.displayName?.charAt(0) || "U"}
-              </div>
-              <span className="text-sm text-gray-600 pr-1">{user.displayName}</span>
+
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="hidden items-center gap-2 rounded-full border border-border/80 bg-card px-2 py-1 sm:flex">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[color:var(--md-sys-color-primary-container)] text-xs font-semibold text-[color:var(--md-sys-color-on-primary-container)]">
+              {displayName.charAt(0)}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={signOut}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
+            <span className="max-w-40 truncate pr-1 text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
+              {displayName}
+            </span>
           </div>
+
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={signOut}
+            className="hidden text-[color:var(--md-sys-color-on-surface-variant)] hover:text-foreground sm:inline-flex"
+            aria-label="Sign out"
+          >
+            <LogOut className="h-4 w-4" />
+          </Button>
+
           <button
-            className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            type="button"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full text-[color:var(--md-sys-color-on-surface-variant)] transition-colors hover:bg-[color:var(--md-sys-color-surface-container)] md:hidden"
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
           >
             {mobileMenuOpen ? (
-              <X className="w-5 h-5 text-gray-600" />
+              <X className="h-5 w-5" />
             ) : (
-              <Menu className="w-5 h-5 text-gray-600" />
+              <Menu className="h-5 w-5" />
             )}
           </button>
         </div>
       </div>
 
-      {/* Mobile menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t bg-white animate-in slide-in-from-top-2 duration-200">
-          <nav className="flex flex-col p-2 gap-1">
+        <div className="border-t border-border/70 bg-[color:var(--md-sys-color-surface-container-low)] p-3 md:hidden">
+          <nav className="flex flex-col gap-1">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = pathname.startsWith(item.href);
@@ -103,33 +110,31 @@ export function Header() {
                   key={item.href}
                   href={item.href}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all ${
+                  className={`inline-flex items-center gap-3 rounded-[var(--md-shape-md)] px-4 py-3 text-sm transition-colors ${
                     isActive
-                      ? "bg-gray-900 text-white font-medium"
-                      : "text-gray-600 hover:bg-gray-50 active:bg-gray-100"
+                      ? "bg-[color:var(--md-sys-color-secondary-container)] text-[color:var(--md-sys-color-on-secondary-container)]"
+                      : "text-[color:var(--md-sys-color-on-surface-variant)] hover:bg-[color:var(--md-sys-color-surface-container)]"
                   }`}
                 >
-                  <Icon className="w-5 h-5" />
-                  {item.label}
+                  <Icon className="h-5 w-5" />
+                  <span>{item.label}</span>
                 </Link>
               );
             })}
           </nav>
-          <div className="border-t px-4 py-3 flex items-center justify-between">
+
+          <div className="mt-3 flex items-center justify-between rounded-[var(--md-shape-md)] border border-border/70 bg-card px-3 py-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white text-sm font-medium">
-                {user.displayName?.charAt(0) || "U"}
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--md-sys-color-primary-container)] text-xs font-semibold text-[color:var(--md-sys-color-on-primary-container)]">
+                {displayName.charAt(0)}
               </div>
-              <span className="text-sm text-gray-600">{user.displayName}</span>
+              <span className="text-sm text-[color:var(--md-sys-color-on-surface-variant)]">
+                {displayName}
+              </span>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={signOut}
-              className="text-gray-400"
-            >
-              <LogOut className="w-4 h-4 mr-1" />
-              ログアウト
+            <Button variant="ghost" size="sm" onClick={signOut}>
+              <LogOut className="h-4 w-4" />
+              Sign out
             </Button>
           </div>
         </div>

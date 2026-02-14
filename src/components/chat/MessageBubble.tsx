@@ -35,34 +35,34 @@ export function MessageBubble({ role, content, material }: MessageBubbleProps) {
   const isUser = role === "user";
 
   return (
-    <div className={`flex gap-2.5 ${isUser ? "justify-end" : "justify-start"} mb-5`}>
+    <div className={`mb-5 flex gap-2.5 ${isUser ? "justify-end" : "justify-start"}`}>
       {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-          <Bot className="w-4 h-4 text-white" />
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[color:var(--md-sys-color-primary-container)] text-[color:var(--md-sys-color-on-primary-container)]">
+          <Bot className="h-4 w-4" />
         </div>
       )}
+
       <div
-        className={`max-w-[75%] rounded-2xl px-4 py-3 ${
+        className={`max-w-[78%] rounded-[var(--md-shape-lg)] border px-4 py-3 shadow-[var(--md-elevation-1)] ${
           isUser
-            ? "bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-sm shadow-blue-200"
-            : "bg-white border border-gray-100 text-gray-900 shadow-sm"
+            ? "border-[color:color-mix(in_srgb,var(--md-sys-color-primary),transparent_68%)] bg-[color:var(--md-sys-color-primary-container)] text-[color:var(--md-sys-color-on-primary-container)]"
+            : "border-border/70 bg-card text-foreground"
         }`}
       >
-        <div>
-          <MarkdownContent
-            content={content}
-            isUser={isUser}
-            mentions={!isUser ? material?.mentions ?? [] : []}
-            terms={!isUser ? material?.terms ?? [] : []}
-          />
-        </div>
+        <MarkdownContent
+          content={content}
+          isUser={isUser}
+          mentions={!isUser ? material?.mentions ?? [] : []}
+          terms={!isUser ? material?.terms ?? [] : []}
+        />
         {!isUser && material?.summary && material.summary.length > 0 && (
           <SummaryAccordion summary={material.summary} />
         )}
       </div>
+
       {isUser && (
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-600 to-gray-800 flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-          <User className="w-4 h-4 text-white" />
+        <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[color:var(--md-sys-color-secondary-container)] text-[color:var(--md-sys-color-on-secondary-container)]">
+          <User className="h-4 w-4" />
         </div>
       )}
     </div>

@@ -13,12 +13,31 @@ interface QuizCardProps {
   conversationId: string;
 }
 
-const tagConfig: Record<string, { bg: string; text: string; border: string }> = {
-  What: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-  Why: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
-  How: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
-  When: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
-  Example: { bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-200" },
+const tagConfig: Record<string, { container: string; text: string }> = {
+  What: {
+    container:
+      "bg-[color:color-mix(in_srgb,var(--md-sys-color-primary-container),white_14%)]",
+    text: "text-[color:var(--md-sys-color-on-primary-container)]",
+  },
+  Why: {
+    container:
+      "bg-[color:color-mix(in_srgb,var(--md-sys-color-secondary-container),white_12%)]",
+    text: "text-[color:var(--md-sys-color-on-secondary-container)]",
+  },
+  How: {
+    container:
+      "bg-[color:color-mix(in_srgb,var(--md-sys-color-tertiary-container),white_10%)]",
+    text: "text-[color:var(--md-sys-color-on-tertiary-container)]",
+  },
+  When: {
+    container: "bg-[color:var(--md-sys-color-surface-container)]",
+    text: "text-[color:var(--md-sys-color-on-surface-variant)]",
+  },
+  Example: {
+    container:
+      "bg-[color:color-mix(in_srgb,var(--md-sys-color-primary-container),white_28%)]",
+    text: "text-[color:var(--md-sys-color-on-primary-container)]",
+  },
 };
 
 export function QuizCard({
@@ -29,51 +48,57 @@ export function QuizCard({
   conversationId,
 }: QuizCardProps) {
   const [showAnswer, setShowAnswer] = useState(false);
-  const config = tagConfig[tag] || { bg: "bg-gray-50", text: "text-gray-700", border: "border-gray-200" };
+  const config = tagConfig[tag] || {
+    container: "bg-[color:var(--md-sys-color-surface-container)]",
+    text: "text-[color:var(--md-sys-color-on-surface-variant)]",
+  };
 
   return (
     <Card
-      className={`cursor-pointer transition-all hover:shadow-md ${
-        showAnswer ? "ring-1 ring-blue-100 shadow-md" : "hover:translate-y-[-1px]"
+      className={`cursor-pointer transition-all ${
+        showAnswer
+          ? "border-[color:color-mix(in_srgb,var(--md-sys-color-primary),transparent_70%)] shadow-[var(--md-elevation-2)]"
+          : "hover:shadow-[var(--md-elevation-2)]"
       }`}
-      onClick={() => setShowAnswer(!showAnswer)}
+      onClick={() => setShowAnswer((prev) => !prev)}
     >
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <Badge
-            variant="outline"
-            className={`text-xs font-medium ${config.bg} ${config.text} ${config.border}`}
+            variant="secondary"
+            className={`text-xs font-medium ${config.container} ${config.text}`}
           >
             {tag}
           </Badge>
-          <div className="text-gray-300">
-            {showAnswer ? (
-              <EyeOff className="w-4 h-4" />
-            ) : (
-              <Eye className="w-4 h-4" />
-            )}
+          <div className="text-[color:var(--md-sys-color-outline)]">
+            {showAnswer ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </div>
         </div>
       </CardHeader>
+
       <CardContent>
-        <p className="text-sm font-medium mb-3 text-gray-800 leading-relaxed">{question}</p>
+        <p className="mb-3 text-sm font-medium leading-relaxed text-foreground">
+          {question}
+        </p>
         {showAnswer ? (
-          <div className="border-t border-gray-100 pt-3 animate-in fade-in slide-in-from-top-1 duration-200">
-            <p className="text-sm text-gray-600 leading-relaxed">{answer}</p>
+          <div className="animate-in fade-in slide-in-from-top-1 border-t border-border/70 pt-3 duration-200">
+            <p className="text-sm leading-relaxed text-[color:var(--md-sys-color-on-surface-variant)]">
+              {answer}
+            </p>
             {sources.length > 0 && conversationId && (
               <a
                 href={`/chat/${conversationId}`}
                 onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 mt-3 transition-colors"
+                className="mt-3 inline-flex items-center gap-1 text-xs text-primary transition-colors hover:underline"
               >
-                <ExternalLink className="w-3 h-3" />
-                元の会話を見る
+                <ExternalLink className="h-3 w-3" />
+                元の会話を開く
               </a>
             )}
           </div>
         ) : (
-          <p className="text-xs text-gray-400 flex items-center gap-1">
-            <Eye className="w-3 h-3" />
+          <p className="flex items-center gap-1 text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
+            <Eye className="h-3 w-3" />
             タップで回答を表示
           </p>
         )}

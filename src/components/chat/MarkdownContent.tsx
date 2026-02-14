@@ -201,8 +201,8 @@ export function MarkdownContent({
         "[&_pre_code]:bg-transparent [&_pre_code]:p-0",
         "[&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-md",
         isUser
-          ? "[&_a]:text-blue-100 [&_a]:underline [&_a:hover]:text-white [&_blockquote]:border-blue-200/60 [&_pre]:bg-white/15 [&_code]:bg-white/15 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded"
-          : "[&_a]:text-blue-700 [&_a]:underline [&_a:hover]:text-blue-800 [&_blockquote]:border-gray-300 [&_pre]:bg-gray-900 [&_pre]:text-gray-100 [&_code]:bg-gray-100 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded"
+          ? "[&_a]:text-[color:var(--md-sys-color-on-primary-container)] [&_a]:underline [&_a:hover]:opacity-80 [&_blockquote]:border-[color:color-mix(in_srgb,var(--md-sys-color-primary),transparent_60%)] [&_pre]:bg-[color:color-mix(in_srgb,var(--md-sys-color-primary-container),black_10%)] [&_code]:bg-[color:color-mix(in_srgb,var(--md-sys-color-primary-container),black_7%)] [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded"
+          : "[&_a]:text-primary [&_a]:underline [&_a:hover]:brightness-90 [&_blockquote]:border-border [&_pre]:bg-[color:var(--md-sys-color-inverse-surface)] [&_pre]:text-[color:var(--md-sys-color-inverse-on-surface)] [&_code]:bg-[color:var(--md-sys-color-surface-container)] [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded"
       )}
     >
       <ReactMarkdown
@@ -223,7 +223,9 @@ export function MarkdownContent({
                   <span
                     className={cn(
                       "underline decoration-dotted cursor-pointer hover:opacity-80",
-                      isUser ? "text-blue-100" : "text-blue-700"
+                      isUser
+                        ? "text-[color:var(--md-sys-color-on-primary-container)]"
+                        : "text-primary"
                     )}
                   >
                     {children}

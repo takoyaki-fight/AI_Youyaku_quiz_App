@@ -70,49 +70,57 @@ export function ConversationSidebar() {
   };
 
   return (
-    <div className="hidden h-full min-h-0 w-64 flex-col overflow-hidden border-r bg-gray-50/50 md:flex">
-      <div className="p-3 border-b bg-white/50">
-        <Button
-          onClick={handleCreate}
-          disabled={creating}
-          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-sm"
-          size="sm"
-        >
+    <aside className="hidden h-full min-h-0 w-72 flex-col overflow-hidden border-r border-border/70 bg-[color:var(--md-sys-color-surface-container-low)] md:flex">
+      <div className="space-y-3 border-b border-border/70 p-4">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">会話</h2>
+          <p className="text-xs text-[color:var(--md-sys-color-on-surface-variant)]">
+            学習テーマごとに会話を整理できます
+          </p>
+        </div>
+        <Button onClick={handleCreate} disabled={creating} className="w-full">
           {creating ? (
-            <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
           ) : (
-            <Plus className="w-4 h-4 mr-1.5" />
+            <Plus className="mr-1.5 h-4 w-4" />
           )}
           {creating ? "作成中..." : "新しい会話"}
         </Button>
       </div>
-      <ScrollArea className="min-h-0 flex-1">
+
+      <ScrollArea className="min-h-0 flex-1 px-2 py-3">
         {loading ? (
-          <div className="p-6 flex flex-col items-center gap-2 text-gray-400">
-            <Loader2 className="w-5 h-5 animate-spin" />
+          <div className="flex flex-col items-center gap-2 px-4 py-8 text-[color:var(--md-sys-color-on-surface-variant)]">
+            <Loader2 className="h-5 w-5 animate-spin" />
             <span className="text-xs">読み込み中...</span>
           </div>
         ) : conversations.length === 0 ? (
-          <div className="p-6 flex flex-col items-center gap-2 text-gray-400">
-            <MessageCircle className="w-8 h-8 stroke-1" />
-            <span className="text-xs">会話がありません</span>
+          <div className="flex flex-col items-center gap-2 px-4 py-8 text-[color:var(--md-sys-color-on-surface-variant)]">
+            <MessageCircle className="h-8 w-8 stroke-1" />
+            <span className="text-xs">会話がまだありません</span>
           </div>
         ) : (
-          <div className="py-1.5 px-2">
+          <div className="space-y-1">
             {conversations.map((conv) => {
               const isActive = currentId === conv.conversationId;
               return (
                 <button
                   key={conv.conversationId}
                   onClick={() => router.push(`/chat/${conv.conversationId}`)}
-                  className={`w-full text-left px-3 py-2.5 text-sm rounded-lg mb-0.5 transition-all ${
+                  className={`w-full rounded-[var(--md-shape-md)] px-3 py-2.5 text-left text-sm transition-colors ${
                     isActive
-                      ? "bg-white font-medium shadow-sm border border-gray-200/80 text-gray-900"
-                      : "text-gray-600 hover:bg-white/80 hover:text-gray-900"
+                      ? "border border-border/70 bg-[color:var(--md-sys-color-secondary-container)] text-[color:var(--md-sys-color-on-secondary-container)] shadow-[var(--md-elevation-1)]"
+                      : "text-[color:var(--md-sys-color-on-surface-variant)] hover:bg-[color:var(--md-sys-color-surface-container)] hover:text-foreground"
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <MessageCircle className={`w-3.5 h-3.5 shrink-0 ${isActive ? "text-blue-600" : "text-gray-400"}`} />
+                  <div className="flex items-start gap-2">
+                    <MessageCircle
+                      className={`mt-0.5 h-4 w-4 shrink-0 ${
+                        isActive
+                          ? "text-[color:var(--md-sys-color-on-secondary-container)]"
+                          : "text-[color:var(--md-sys-color-outline)]"
+                      }`}
+                    />
                     <span className="min-w-0 break-words whitespace-normal leading-snug">
                       {conv.title}
                     </span>
@@ -123,6 +131,6 @@ export function ConversationSidebar() {
           </div>
         )}
       </ScrollArea>
-    </div>
+    </aside>
   );
 }

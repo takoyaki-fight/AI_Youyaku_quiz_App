@@ -149,7 +149,7 @@ export default function ChatPage() {
         setMessages(msgsWithMaterials);
       })
       .catch(() => {
-        toast.error("Failed to load conversation");
+        toast.error("会話の読み込みに失敗しました");
       })
       .finally(() => {
         if (mountedRef.current && conversationIdRef.current === conversationId) {
@@ -197,7 +197,7 @@ export default function ChatPage() {
         ]);
         window.dispatchEvent(new Event("conversations:refresh"));
       } catch {
-        toast.error("Failed to send message");
+        toast.error("メッセージ送信に失敗しました");
         setMessages((prev) =>
           prev.filter((m) => m.messageId !== tempUserMsg.messageId)
         );
@@ -213,7 +213,7 @@ export default function ChatPage() {
   if (pageLoading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary/25 border-t-primary" />
       </div>
     );
   }
