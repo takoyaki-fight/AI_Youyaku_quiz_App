@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,6 +29,10 @@ interface ConversationItem {
   title: string;
   messageCount: number;
   updatedAt?: FirestoreTimestamp | null;
+}
+
+interface ConversationDetailResponse {
+  messages?: Array<{ messageId: string }>;
 }
 
 const absoluteFormatter = new Intl.DateTimeFormat("ja-JP", {
@@ -89,9 +93,71 @@ export function ConversationSidebar() {
   const [creating, setCreating] = useState(false);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const conversationsRef = useRef<ConversationItem[]>([]);
+  const autoCreatedConversationIdsRef = useRef<Set<string>>(new Set());
+  const previousCurrentIdRef = useRef<string | undefined>(undefined);
   const router = useRouter();
   const params = useParams();
   const currentId = params.conversationId as string | undefined;
+
+  useEffect(() => {
+    conversationsRef.current = conversations;
+  }, [conversations]);
+
+  const maybeDeleteAutoCreatedEmptyConversation = useCallback(
+    async (conversationId: string | undefined) => {
+      if (!conversationId) return;
+      if (!autoCreatedConversationIdsRef.current.has(conversationId)) return;
+
+      const localConversation = conversationsRef.current.find(
+        (item) => item.conversationId === conversationId
+      );
+      if (localConversation && localConversation.messageCount > 0) {
+        autoCreatedConversationIdsRef.current.delete(conversationId);
+        return;
+      }
+
+      try {
+        const detail = await apiGet<ConversationDetailResponse>(
+          `/api/v1/conversations/${conversationId}`
+        );
+        const serverMessageCount = Array.isArray(detail.messages)
+          ? detail.messages.length
+          : 0;
+
+        if (serverMessageCount > 0) {
+          autoCreatedConversationIdsRef.current.delete(conversationId);
+          return;
+        }
+
+        await apiDelete(`/api/v1/conversations/${conversationId}`);
+        autoCreatedConversationIdsRef.current.delete(conversationId);
+        setConversations((prev) =>
+          prev.filter((item) => item.conversationId !== conversationId)
+        );
+        window.dispatchEvent(new Event("conversations:refresh"));
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          /CONVERSATION_NOT_FOUND|Conversation not found/i.test(error.message)
+        ) {
+          autoCreatedConversationIdsRef.current.delete(conversationId);
+          setConversations((prev) =>
+            prev.filter((item) => item.conversationId !== conversationId)
+          );
+        }
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    const previousId = previousCurrentIdRef.current;
+    if (previousId && previousId !== currentId) {
+      void maybeDeleteAutoCreatedEmptyConversation(previousId);
+    }
+    previousCurrentIdRef.current = currentId;
+  }, [currentId, maybeDeleteAutoCreatedEmptyConversation]);
 
   const fetchConversations = useCallback(async () => {
     try {
@@ -99,6 +165,16 @@ export function ConversationSidebar() {
         "/api/v1/conversations"
       );
       setConversations(data.conversations);
+      for (const conversationId of Array.from(
+        autoCreatedConversationIdsRef.current
+      )) {
+        const found = data.conversations.find(
+          (item) => item.conversationId === conversationId
+        );
+        if (!found || found.messageCount > 0) {
+          autoCreatedConversationIdsRef.current.delete(conversationId);
+        }
+      }
     } catch {
       toast.error("会話一覧の取得に失敗しました");
     } finally {
@@ -129,6 +205,7 @@ export function ConversationSidebar() {
         { title: "新しい会話" },
         uuidv4()
       );
+      autoCreatedConversationIdsRef.current.add(conv.conversationId);
       setConversations((prev) => [conv, ...prev]);
       router.push(`/chat/${conv.conversationId}`);
     } catch {
@@ -180,6 +257,7 @@ export function ConversationSidebar() {
       setProcessingId(conv.conversationId);
       try {
         await apiDelete(`/api/v1/conversations/${conv.conversationId}`);
+        autoCreatedConversationIdsRef.current.delete(conv.conversationId);
         setConversations((prev) =>
           prev.filter((item) => item.conversationId !== conv.conversationId)
         );

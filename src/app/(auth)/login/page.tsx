@@ -102,7 +102,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <BrandLogo size="lg" showTagline className="mx-auto mb-4" />
-          <p className="mx-auto mt-2 max-w-md text-sm text-[color:var(--md-sys-color-on-surface-variant)]">
+          <p className="mx-auto mt-2 max-w-[42ch] text-sm leading-relaxed text-[color:var(--md-sys-color-on-surface-variant)] [text-wrap:balance]">
             ソクラテスの産婆術に着想を得た、対話と問いで理解を引き出す学習アシスタントです。
           </p>
         </div>
