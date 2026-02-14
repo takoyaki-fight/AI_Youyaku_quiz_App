@@ -8,6 +8,7 @@ import {
   getConversation,
   getMessages,
   addMessage,
+  setMessageActiveMaterialVersion,
   updateConversationTitle,
   saveIdempotency,
   saveGenerationLog,
@@ -22,8 +23,17 @@ import { checkRateLimit, RATE_LIMITS } from "@/lib/middleware/rate-limit";
 import { MODEL_NAME } from "@/lib/vertex-ai/client";
 import { v4 as uuidv4 } from "uuid";
 
-const AI_TIMEOUT_MS = Number(process.env.CHAT_AI_TIMEOUT_MS || 0);
-const TITLE_TIMEOUT_MS = Number(process.env.TITLE_AI_TIMEOUT_MS || 6000);
+function parseTimeoutMs(value: string | undefined, fallbackMs: number): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallbackMs;
+}
+
+const AI_TIMEOUT_MS = parseTimeoutMs(process.env.CHAT_AI_TIMEOUT_MS, 25_000);
+const MATERIAL_TIMEOUT_MS = parseTimeoutMs(
+  process.env.MATERIAL_AI_TIMEOUT_MS,
+  15_000
+);
+const TITLE_TIMEOUT_MS = parseTimeoutMs(process.env.TITLE_AI_TIMEOUT_MS, 6_000);
 const TITLE_MAX_LENGTH = 20;
 const TITLE_FALLBACK = "学習トピック";
 
@@ -171,9 +181,30 @@ async function generateChatWithTimeout(
 }
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return promise;
+  }
+
   return Promise.race([
     promise,
     new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs)),
+  ]);
+}
+
+function withRejectTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  label: string
+): Promise<T> {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return promise;
+  }
+
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label}_TIMEOUT_${timeoutMs}ms`)), timeoutMs)
+    ),
   ]);
 }
 
@@ -263,10 +294,9 @@ export async function POST(
     messageId: assistantMessageId,
     role: "assistant" as const,
     content: chatResult.text,
-    ...(usedFallback ? {} : { activeMaterialVersion: 1 }),
   };
 
-  const assistantMessage = await addMessage(userId, conversationId, {
+  let assistantMessage = await addMessage(userId, conversationId, {
     ...assistantPayload,
   });
 
@@ -286,15 +316,31 @@ export async function POST(
   let material = null;
   if (!usedFallback) {
     try {
-      material = await generateAndSaveMaterial(
-        userId,
-        conversationId,
-        assistantMessageId,
-        chatResult.text,
-        history,
-        conversation.expireAt,
-        1
+      material = await withRejectTimeout(
+        generateAndSaveMaterial(
+          userId,
+          conversationId,
+          assistantMessageId,
+          chatResult.text,
+          history,
+          conversation.expireAt,
+          1
+        ),
+        MATERIAL_TIMEOUT_MS,
+        "MATERIAL_AI"
       );
+      if (material?.version) {
+        await setMessageActiveMaterialVersion(
+          userId,
+          conversationId,
+          assistantMessageId,
+          material.version
+        );
+        assistantMessage = {
+          ...assistantMessage,
+          activeMaterialVersion: material.version,
+        };
+      }
     } catch (e) {
       console.error("Material generation failed:", e);
     }

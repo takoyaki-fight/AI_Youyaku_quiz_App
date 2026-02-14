@@ -10,12 +10,14 @@ function normalizeNamespace(value: string | undefined): string {
   return value.trim();
 }
 
+function toFirestoreSafeId(value: string): string {
+  return encodeURIComponent(value);
+}
+
 function buildStorageKey(rawKey: string, options?: IdempotencyOptions): string {
   const namespace = normalizeNamespace(options?.namespace);
-  if (!namespace) {
-    return rawKey;
-  }
-  return `${namespace}:${rawKey}`;
+  const scopedKey = namespace ? `${namespace}:${rawKey}` : rawKey;
+  return toFirestoreSafeId(scopedKey);
 }
 
 export async function checkIdempotencyKey(

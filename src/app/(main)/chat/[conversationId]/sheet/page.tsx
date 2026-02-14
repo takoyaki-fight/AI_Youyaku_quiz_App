@@ -169,17 +169,19 @@ export default function ConversationSheetPage() {
   const handleDownload = useCallback(() => {
     if (!sheet) return;
 
-    const blob = new Blob([sheet.markdown], {
+    // Prefix UTF-8 BOM for better compatibility with markdown viewers on Windows.
+    const blob = new Blob(["\uFEFF", sheet.markdown], {
       type: "text/markdown;charset=utf-8",
     });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = buildDownloadFilename(sheet);
+    anchor.style.display = "none";
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
-    URL.revokeObjectURL(url);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
   }, [sheet]);
 
   const updatedAtLabel = useMemo(

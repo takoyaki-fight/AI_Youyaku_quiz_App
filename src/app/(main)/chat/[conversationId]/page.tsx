@@ -33,12 +33,15 @@ interface ConversationDetail {
     messageId: string;
     role: "user" | "assistant";
     content: string;
+    activeMaterialVersion?: number;
   }>;
 }
 
+type ChatMessageItem = MessageItem & { activeMaterialVersion?: number };
+
 interface SendResult {
-  userMessage: MessageItem;
-  assistantMessage: MessageItem;
+  userMessage: ChatMessageItem;
+  assistantMessage: ChatMessageItem;
   material?: MaterialData | null;
 }
 
@@ -52,7 +55,7 @@ function sleep(ms: number) {
 export default function ChatPage() {
   const params = useParams();
   const conversationId = params.conversationId as string;
-  const [messages, setMessages] = useState<MessageItem[]>([]);
+  const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [sending, setSending] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const mountedRef = useRef(true);
@@ -89,7 +92,7 @@ export default function ChatPage() {
       try {
         for (let i = 0; i < MATERIAL_POLL_MAX_ATTEMPTS; i++) {
           try {
-            const matData = await apiGet<{ material: MaterialData }>(
+            const matData = await apiGet<{ material: MaterialData | null }>(
               `/api/v1/conversations/${targetConversationId}/materials/${messageId}`
             );
 
@@ -103,7 +106,7 @@ export default function ChatPage() {
             setMessages((prev) =>
               prev.map((msg) =>
                 msg.messageId === messageId
-                  ? { ...msg, material: matData.material }
+                  ? { ...msg, material: matData.material ?? null }
                   : msg
               )
             );
@@ -126,14 +129,14 @@ export default function ChatPage() {
     setPageLoading(true);
     apiGet<ConversationDetail>(`/api/v1/conversations/${conversationId}`)
       .then(async (data) => {
-        const msgsWithMaterials: MessageItem[] = await Promise.all(
+        const msgsWithMaterials: ChatMessageItem[] = await Promise.all(
           data.messages.map(async (msg) => {
             if (msg.role === "assistant") {
               try {
-                const matData = await apiGet<{ material: MaterialData }>(
+                const matData = await apiGet<{ material: MaterialData | null }>(
                   `/api/v1/conversations/${conversationId}/materials/${msg.messageId}`
                 );
-                return { ...msg, material: matData.material };
+                return { ...msg, material: matData.material ?? null };
               } catch {
                 return { ...msg, material: null };
               }
@@ -160,7 +163,11 @@ export default function ChatPage() {
 
   useEffect(() => {
     for (const message of messages) {
-      if (message.role === "assistant" && !message.material) {
+      if (
+        message.role === "assistant" &&
+        !message.material &&
+        Boolean(message.activeMaterialVersion)
+      ) {
         void pollAndAttachMaterial(message.messageId);
       }
     }
@@ -171,7 +178,7 @@ export default function ChatPage() {
       if (sending) return;
       setSending(true);
 
-      const tempUserMsg: MessageItem = {
+      const tempUserMsg: ChatMessageItem = {
         messageId: `temp-${Date.now()}`,
         role: "user",
         content,
@@ -185,7 +192,7 @@ export default function ChatPage() {
           uuidv4()
         );
 
-        const assistantWithMaterial: MessageItem = {
+        const assistantWithMaterial: ChatMessageItem = {
           ...result.assistantMessage,
           material: result.material || null,
         };

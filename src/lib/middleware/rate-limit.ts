@@ -1,13 +1,13 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { db } from "@/lib/firebase/admin";
 import { Timestamp } from "firebase-admin/firestore";
 
 interface RateLimitConfig {
-  /** 制限の種類 (generationLogのtypeに対応) */
+  /** generationLog.type に対応する種別 */
   type: string;
-  /** 上限回数 */
+  /** 許容回数 */
   limit: number;
-  /** ウィンドウ (ミリ秒) */
+  /** ウィンドウ幅（ミリ秒） */
   windowMs: number;
 }
 
@@ -39,27 +39,39 @@ export async function checkRateLimit(
   config: RateLimitConfig
 ): Promise<NextResponse | null> {
   const since = new Date(Date.now() - config.windowMs);
-  const snap = await db
-    .collection(`users/${userId}/generationLogs`)
-    .where("type", "==", config.type)
-    .where("createdAt", ">=", Timestamp.fromDate(since))
-    .get();
 
-  if (snap.size >= config.limit) {
-    const windowDesc =
-      config.windowMs >= 24 * 60 * 60 * 1000
-        ? "1日"
-        : `${Math.floor(config.windowMs / 60000)}分`;
+  try {
+    // 複合インデックス(type + createdAt)が未作成でも動作できるよう、
+    // createdAt のみで取得してアプリ側で type を絞り込む。
+    const snap = await db
+      .collection(`users/${userId}/generationLogs`)
+      .where("createdAt", ">=", Timestamp.fromDate(since))
+      .get();
 
-    return NextResponse.json(
-      {
-        error: {
-          code: "RATE_LIMIT_EXCEEDED",
-          message: `レート制限を超えました。${windowDesc}あたり${config.limit}回までです。`,
+    const matchedCount = snap.docs.reduce((count, doc) => {
+      const data = doc.data() as { type?: string } | undefined;
+      return data?.type === config.type ? count + 1 : count;
+    }, 0);
+
+    if (matchedCount >= config.limit) {
+      const windowDesc =
+        config.windowMs >= 24 * 60 * 60 * 1000
+          ? "1日"
+          : `${Math.floor(config.windowMs / 60000)}分`;
+
+      return NextResponse.json(
+        {
+          error: {
+            code: "RATE_LIMIT_EXCEEDED",
+            message: `レート制限を超えました。${windowDesc}あたり${config.limit}回までです。`,
+          },
         },
-      },
-      { status: 429 }
-    );
+        { status: 429 }
+      );
+    }
+  } catch (error) {
+    // リミッターの問い合わせ失敗でコア機能まで止めないため fail-open とする。
+    console.error("Rate limit check failed:", error);
   }
 
   return null;

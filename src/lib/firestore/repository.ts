@@ -358,6 +358,24 @@ export async function addMessage(
   return data;
 }
 
+export async function setMessageActiveMaterialVersion(
+  userId: string,
+  conversationId: string,
+  messageId: string,
+  version?: number
+): Promise<void> {
+  const ref = db.doc(
+    `users/${userId}/conversations/${conversationId}/messages/${messageId}`
+  );
+
+  if (typeof version === "number") {
+    await ref.update({ activeMaterialVersion: version });
+    return;
+  }
+
+  await ref.update({ activeMaterialVersion: FieldValue.delete() });
+}
+
 export async function getMessages(
   userId: string,
   conversationId: string,

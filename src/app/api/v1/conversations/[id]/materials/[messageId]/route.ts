@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { verifyAuth, isAuthError } from "@/lib/middleware/auth";
 import { getConversation, getActiveMaterial } from "@/lib/firestore/repository";
 
-// GET /api/v1/conversations/:id/materials/:messageId — メッセージのアクティブ素材を取得
+// GET /api/v1/conversations/:id/materials/:messageId
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; messageId: string }> }
@@ -15,7 +15,12 @@ export async function GET(
 
   if (!conversation) {
     return NextResponse.json(
-      { error: { code: "CONVERSATION_NOT_FOUND", message: "会話が見つかりません。" } },
+      {
+        error: {
+          code: "CONVERSATION_NOT_FOUND",
+          message: "Conversation not found.",
+        },
+      },
       { status: 404 }
     );
   }
@@ -26,11 +31,9 @@ export async function GET(
     messageId
   );
 
+  // Material can be legitimately absent (e.g. generation timeout/fallback).
   if (!material) {
-    return NextResponse.json(
-      { error: { code: "MATERIAL_NOT_FOUND", message: "素材が見つかりません。" } },
-      { status: 404 }
-    );
+    return NextResponse.json({ material: null }, { status: 200 });
   }
 
   return NextResponse.json({
