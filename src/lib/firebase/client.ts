@@ -1,5 +1,5 @@
-import { initializeApp, getApps, getApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
+import { getAuth, GoogleAuthProvider, type Auth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -7,8 +7,30 @@ const firebaseConfig = {
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
 };
 
-const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const googleProvider = new GoogleAuthProvider();
+let appInstance: FirebaseApp | null = null;
+let authInstance: Auth | null = null;
 
-export { app, auth, googleProvider };
+function validateConfig() {
+  if (!firebaseConfig.apiKey || !firebaseConfig.authDomain || !firebaseConfig.projectId) {
+    throw new Error("Firebase client config is missing");
+  }
+}
+
+export function getFirebaseApp(): FirebaseApp {
+  if (!appInstance) {
+    validateConfig();
+    appInstance = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+  }
+
+  return appInstance;
+}
+
+export function getFirebaseAuth(): Auth {
+  if (!authInstance) {
+    authInstance = getAuth(getFirebaseApp());
+  }
+
+  return authInstance;
+}
+
+export const googleProvider = new GoogleAuthProvider();

@@ -1,4 +1,4 @@
-import { vertexAI, MODEL_NAME } from "./client";
+import { getVertexAI, MODEL_NAME } from "./client";
 import {
   buildMaterialPrompt,
   MATERIAL_RESPONSE_SCHEMA,
@@ -211,7 +211,7 @@ async function generateStructured(
   prompt: string,
   assistantContent: string
 ): Promise<MaterialGenerationResult> {
-  const model = vertexAI.getGenerativeModel({
+  const model = getVertexAI().getGenerativeModel({
     model: MODEL_NAME,
     generationConfig: {
       responseMimeType: "application/json",
@@ -254,7 +254,7 @@ async function generateText(
   prompt: string,
   assistantContent: string
 ): Promise<MaterialGenerationResult> {
-  const model = vertexAI.getGenerativeModel({
+  const model = getVertexAI().getGenerativeModel({
     model: MODEL_NAME,
   });
 

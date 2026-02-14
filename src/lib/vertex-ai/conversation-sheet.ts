@@ -1,4 +1,4 @@
-import { vertexAI, MODEL_NAME } from "./client";
+import { getVertexAI, MODEL_NAME } from "./client";
 import {
   buildConversationSheetPrompt,
   CONVERSATION_SHEET_RESPONSE_SCHEMA,
@@ -201,7 +201,7 @@ export async function generateConversationSheet(
 async function generateStructured(
   prompt: string
 ): Promise<ConversationSheetGenerationResult> {
-  const model = vertexAI.getGenerativeModel({
+  const model = getVertexAI().getGenerativeModel({
     model: MODEL_NAME,
     generationConfig: {
       responseMimeType: "application/json",
@@ -229,7 +229,7 @@ async function generateStructured(
 async function generateText(
   prompt: string
 ): Promise<ConversationSheetGenerationResult> {
-  const model = vertexAI.getGenerativeModel({
+  const model = getVertexAI().getGenerativeModel({
     model: MODEL_NAME,
   });
 
