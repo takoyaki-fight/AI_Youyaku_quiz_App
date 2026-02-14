@@ -20,7 +20,8 @@ function toErrorMessage(error: unknown): string {
 export async function syncAutoConversationSheet(
   userId: string,
   conversationId: string,
-  messages: Message[]
+  messages: Message[],
+  additionalInstruction?: string
 ): Promise<ConversationSheet | null> {
   if (!messages.length) {
     return null;
@@ -29,7 +30,7 @@ export async function syncAutoConversationSheet(
   const startTime = Date.now();
 
   try {
-    const generated = await generateConversationSheet(messages);
+    const generated = await generateConversationSheet(messages, additionalInstruction);
     const existing = await getConversationSheet(
       userId,
       conversationId,

@@ -182,9 +182,13 @@ function normalizeSheet(raw: RawConversationSheetResult): RawConversationSheetRe
 }
 
 export async function generateConversationSheet(
-  messages: Message[]
+  messages: Message[],
+  additionalInstruction?: string
 ): Promise<ConversationSheetGenerationResult> {
-  const prompt = buildConversationSheetPrompt(formatHistory(messages));
+  const prompt = buildConversationSheetPrompt(
+    formatHistory(messages),
+    additionalInstruction
+  );
 
   try {
     return await generateStructured(prompt);
