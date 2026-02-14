@@ -1,17 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
+import { CloudTasksClient } from "@google-cloud/tasks";
 import { db } from "@/lib/firebase/admin";
 import { getYesterdayDateString } from "@/lib/utils/date";
 import { generateDailyQuizForUser } from "@/lib/services/daily-quiz.service";
 import { verifyInternalRequest } from "@/lib/middleware/internal-auth";
 
 // POST /api/internal/daily-quiz-trigger
-// Cloud Schedulerから呼び出し → 全対象ユーザーのタスクをenqueue
+// Called by Cloud Scheduler. Enqueues one task per target user.
 export async function POST(req: NextRequest) {
   const internalAuthError = verifyInternalRequest(req);
   if (internalAuthError) return internalAuthError;
 
   try {
-    // 対象ユーザー収集
     const userIds = await collectTargetUserIds();
 
     const appUrl = process.env.APP_URL;
@@ -19,26 +19,22 @@ export async function POST(req: NextRequest) {
     const projectId = process.env.GOOGLE_CLOUD_PROJECT;
 
     if (appUrl && tasksSaEmail && projectId && process.env.NODE_ENV === "production") {
-      // Cloud Tasks にenqueue
-      const enqueuedCount = await enqueueToCloudTasks(
-        userIds,
-        appUrl,
-        projectId
-      );
+      const enqueuedCount = await enqueueToCloudTasks(userIds, appUrl, projectId);
       return NextResponse.json({ success: true, enqueuedUsers: enqueuedCount });
-    } else {
-      // 開発環境 → 直接実行
-      let generated = 0;
-      for (const userId of userIds) {
-        const result = await generateDailyQuizForUser(userId);
-        if (result) generated++;
-      }
-      return NextResponse.json({
-        success: true,
-        directExecution: true,
-        generatedCount: generated,
-      });
     }
+
+    // Fallback for local/dev where Cloud Tasks is not configured.
+    let generated = 0;
+    for (const userId of userIds) {
+      const result = await generateDailyQuizForUser(userId);
+      if (result) generated++;
+    }
+
+    return NextResponse.json({
+      success: true,
+      directExecution: true,
+      generatedCount: generated,
+    });
   } catch (error) {
     console.error("Daily quiz trigger failed:", error);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });
@@ -47,23 +43,27 @@ export async function POST(req: NextRequest) {
 
 async function collectTargetUserIds(): Promise<Set<string>> {
   const userIds = new Set<string>();
-
-  // 全ユーザーをデフォルトで追加
   const allUsersSnap = await db.collection("users").get();
-  for (const doc of allUsersSnap.docs) {
-    userIds.add(doc.id);
-  }
 
-  // 設定で無効にしたユーザーを除外
-  const disabledSnap = await db
-    .collectionGroup("settings")
-    .where("dailyQuizEnabled", "==", false)
-    .get();
-  for (const doc of disabledSnap.docs) {
-    const pathParts = doc.ref.path.split("/");
-    if (pathParts.length >= 2) {
-      userIds.delete(pathParts[1]);
-    }
+  // Avoid collectionGroup query dependency on indexes in fresh projects.
+  const checks = await Promise.all(
+    allUsersSnap.docs.map(async (doc) => {
+      try {
+        const settingsDoc = await db.doc(`users/${doc.id}/settings/default`).get();
+        const dailyQuizEnabled = settingsDoc.data()?.dailyQuizEnabled;
+        if (dailyQuizEnabled === false) {
+          return null;
+        }
+        return doc.id;
+      } catch (error) {
+        console.warn(`Failed to read settings for user ${doc.id}:`, error);
+        return doc.id;
+      }
+    })
+  );
+
+  for (const userId of checks) {
+    if (userId) userIds.add(userId);
   }
 
   return userIds;
@@ -74,8 +74,6 @@ async function enqueueToCloudTasks(
   appUrl: string,
   projectId: string
 ): Promise<number> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { CloudTasksClient } = require("@google-cloud/tasks");
   const client = new CloudTasksClient();
 
   const tasksQueue = process.env.CLOUD_TASKS_QUEUE || "daily-quiz-queue";
@@ -96,9 +94,7 @@ async function enqueueToCloudTasks(
             "Content-Type": "application/json",
             "X-Internal-Api-Key": internalApiSecret,
           },
-          body: Buffer.from(
-            JSON.stringify({ userId, targetDate })
-          ).toString("base64"),
+          body: Buffer.from(JSON.stringify({ userId, targetDate })).toString("base64"),
           oidcToken: { serviceAccountEmail: tasksSaEmail },
         },
       },

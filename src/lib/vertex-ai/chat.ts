@@ -1,4 +1,4 @@
-import { chatModel } from "./client";
+import { getChatModel } from "./client";
 import { CHAT_SYSTEM_PROMPT } from "@/lib/prompts/chat";
 import type { Message } from "@/types/message";
 import type { Content } from "@google-cloud/vertexai";
@@ -39,6 +39,7 @@ export async function generateChatResponse(
   history: Message[],
   userMessage: string
 ): Promise<ChatResult> {
+  const chatModel = getChatModel();
   const contents = buildContents(history, userMessage);
 
   const result = await chatModel.generateContent({
@@ -64,6 +65,7 @@ export async function generateConversationTitle(
   userMessage: string,
   assistantMessage?: string
 ): Promise<string> {
+  const chatModel = getChatModel();
   const result = await chatModel.generateContent({
     contents: [
       {

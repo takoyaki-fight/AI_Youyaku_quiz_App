@@ -13,7 +13,7 @@ import {
   signInWithPopup,
   signOut as firebaseSignOut,
 } from "firebase/auth";
-import { auth, googleProvider } from "./client";
+import { getFirebaseAuth, googleProvider } from "./client";
 
 interface AuthContextType {
   user: User | null;
@@ -40,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let initialized = false;
+    let unsubscribe: () => void = () => {};
 
     const timeoutId = window.setTimeout(() => {
       if (initialized) return;
@@ -48,28 +49,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuthError("AUTH_INIT_TIMEOUT");
     }, 7000);
 
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      (nextUser) => {
-        if (!initialized) {
-          initialized = true;
-          window.clearTimeout(timeoutId);
+    try {
+      const auth = getFirebaseAuth();
+      unsubscribe = onAuthStateChanged(
+        auth,
+        (nextUser) => {
+          if (!initialized) {
+            initialized = true;
+            window.clearTimeout(timeoutId);
+          }
+          setUser(nextUser);
+          setLoading(false);
+          setAuthError(null);
+        },
+        (error) => {
+          if (!initialized) {
+            initialized = true;
+            window.clearTimeout(timeoutId);
+          }
+          setLoading(false);
+          setAuthError(
+            error instanceof Error ? error.message : "AUTH_INIT_ERROR"
+          );
         }
-        setUser(nextUser);
-        setLoading(false);
-        setAuthError(null);
-      },
-      (error) => {
-        if (!initialized) {
-          initialized = true;
-          window.clearTimeout(timeoutId);
-        }
-        setLoading(false);
-        setAuthError(
-          error instanceof Error ? error.message : "AUTH_INIT_ERROR"
-        );
+      );
+    } catch (error) {
+      if (!initialized) {
+        initialized = true;
+        window.clearTimeout(timeoutId);
       }
-    );
+      setLoading(false);
+      setAuthError(error instanceof Error ? error.message : "AUTH_INIT_ERROR");
+    }
 
     return () => {
       window.clearTimeout(timeoutId);
@@ -80,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = async () => {
     setAuthError(null);
     try {
+      const auth = getFirebaseAuth();
       await signInWithPopup(auth, googleProvider);
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "GOOGLE_SIGNIN_ERROR");
@@ -90,6 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     setAuthError(null);
     try {
+      const auth = getFirebaseAuth();
       await firebaseSignOut(auth);
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : "SIGNOUT_ERROR");

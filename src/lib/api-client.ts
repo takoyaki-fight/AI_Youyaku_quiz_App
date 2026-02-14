@@ -1,6 +1,7 @@
-import { auth } from "@/lib/firebase/client";
+import { getFirebaseAuth } from "@/lib/firebase/client";
 
 async function getAuthHeaders(): Promise<HeadersInit> {
+  const auth = getFirebaseAuth();
   const user = auth.currentUser;
   if (!user) throw new Error("Not authenticated");
   const token = await user.getIdToken();

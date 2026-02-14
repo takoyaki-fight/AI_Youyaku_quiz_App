@@ -1,21 +1,50 @@
-import { VertexAI } from "@google-cloud/vertexai";
+import { VertexAI, type GenerativeModel } from "@google-cloud/vertexai";
 
-const vertexAI = new VertexAI({
-  project: process.env.GOOGLE_CLOUD_PROJECT!,
-  location: process.env.VERTEX_AI_LOCATION || "asia-northeast1",
-});
+let vertexAIInstance: VertexAI | null = null;
+let chatModelInstance: GenerativeModel | null = null;
+let structuredModelInstance: GenerativeModel | null = null;
 
+const DEFAULT_LOCATION = "asia-northeast1";
 export const MODEL_NAME = process.env.VERTEX_AI_MODEL || "gemini-2.5-flash";
 
-export const chatModel = vertexAI.getGenerativeModel({
-  model: MODEL_NAME,
-});
+function getProjectId(): string {
+  const projectId = process.env.GOOGLE_CLOUD_PROJECT;
+  if (!projectId) {
+    throw new Error("GOOGLE_CLOUD_PROJECT is not set");
+  }
+  return projectId;
+}
 
-export const structuredModel = vertexAI.getGenerativeModel({
-  model: MODEL_NAME,
-  generationConfig: {
-    responseMimeType: "application/json",
-  },
-});
+export function getVertexAI(): VertexAI {
+  if (!vertexAIInstance) {
+    vertexAIInstance = new VertexAI({
+      project: getProjectId(),
+      location: process.env.VERTEX_AI_LOCATION || DEFAULT_LOCATION,
+    });
+  }
 
-export { vertexAI };
+  return vertexAIInstance;
+}
+
+export function getChatModel(): GenerativeModel {
+  if (!chatModelInstance) {
+    chatModelInstance = getVertexAI().getGenerativeModel({
+      model: MODEL_NAME,
+    });
+  }
+
+  return chatModelInstance;
+}
+
+export function getStructuredModel(): GenerativeModel {
+  if (!structuredModelInstance) {
+    structuredModelInstance = getVertexAI().getGenerativeModel({
+      model: MODEL_NAME,
+      generationConfig: {
+        responseMimeType: "application/json",
+      },
+    });
+  }
+
+  return structuredModelInstance;
+}

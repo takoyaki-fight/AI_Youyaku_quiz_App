@@ -1,4 +1,4 @@
-import { chatModel } from "./client";
+import { getChatModel } from "./client";
 import type { Content } from "@google-cloud/vertexai";
 
 export interface TermContext {
@@ -70,6 +70,7 @@ export async function generateTermFollowupAnswer(
   question: string,
   history: TermFollowupTurn[] = []
 ): Promise<TermFollowupResult> {
+  const chatModel = getChatModel();
   const prompt = buildPrompt(term, question, history.slice(-6));
 
   const contents: Content[] = [
